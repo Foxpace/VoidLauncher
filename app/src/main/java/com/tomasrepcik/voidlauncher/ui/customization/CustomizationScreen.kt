@@ -20,9 +20,9 @@ import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +37,7 @@ import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.ui.components.AppIcon
+import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchField
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
 
 @Composable
@@ -172,13 +173,18 @@ fun ShortcutPickerScreen(
                 }
 
                 item {
-                    OutlinedTextField(
+                    LauncherSearchField(
                         value = state.query,
                         onValueChange = onQueryChange,
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(stringResource(R.string.filter_apps)) },
-                        singleLine = true,
+                        placeholderText = stringResource(R.string.filter_apps),
                     )
+                }
+
+                if (state.isLoading && state.apps.isEmpty()) {
+                    item {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
                 }
 
                 items(

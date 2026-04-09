@@ -2,7 +2,9 @@ package com.tomasrepcik.voidlauncher.ui.components
 
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,12 +17,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+private const val ICON_BITMAP_SIZE_PX = 144
+private const val ICON_CACHE_BYTES = 12 * 1024 * 1024
 
 @Composable
 fun AppIcon(
@@ -54,12 +62,50 @@ private fun rememberAppIconPainter(
     app: InstalledApp,
     context: Context,
 ): Painter? {
-    val drawable by produceState<Drawable?>(initialValue = null, key1 = app.key) {
-        value = runCatching {
-            context.packageManager.getActivityIcon(
-                ComponentName(app.key.packageName, app.key.activityName)
-            )
-        }.getOrNull()
+    val bitmap by produceState<ImageBitmap?>(
+        initialValue = AppIconBitmapCache.get(app.cacheKey())?.asImageBitmap(),
+        key1 = app.key,
+    ) {
+        if (value != null) {
+            return@produceState
+        }
+        value = withContext(Dispatchers.IO) {
+            loadIconBitmap(context, app)?.asImageBitmap()
+        }
     }
-    return drawable?.let { BitmapPainter(it.toBitmap().asImageBitmap()) }
+    return bitmap?.let(::BitmapPainter)
+}
+
+private fun loadIconBitmap(
+    context: Context,
+    app: InstalledApp,
+): Bitmap? {
+    val cacheKey = app.cacheKey()
+    AppIconBitmapCache.get(cacheKey)?.let { return it }
+
+    val drawable = runCatching {
+        context.packageManager.getActivityIcon(
+            ComponentName(app.key.packageName, app.key.activityName)
+        )
+    }.getOrNull() ?: return null
+
+    return drawable.toCachedBitmap(cacheKey)
+}
+
+private fun Drawable.toCachedBitmap(cacheKey: String): Bitmap {
+    val bitmap = toBitmap(
+        width = ICON_BITMAP_SIZE_PX,
+        height = ICON_BITMAP_SIZE_PX,
+    )
+    AppIconBitmapCache.put(cacheKey, bitmap)
+    return bitmap
+}
+
+private fun InstalledApp.cacheKey(): String = "${key.packageName}/${key.activityName}"
+
+private object AppIconBitmapCache : LruCache<String, Bitmap>(ICON_CACHE_BYTES) {
+    override fun sizeOf(
+        key: String,
+        value: Bitmap,
+    ): Int = value.allocationByteCount
 }

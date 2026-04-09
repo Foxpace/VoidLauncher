@@ -2,6 +2,7 @@
     <string name="app_name">VoidLauncher</string>
     <string name="search_apps_or_web">Search apps or the web</string>
     <string name="search">Search</string>
+    <string name="dismiss_search">Dismiss search</string>
     <string name="customize_home">Customize home</string>
     <string name="open_google_play">Open Google Play search</string>
     <string name="open_google_maps">Open Google Maps search</string>
@@ -11,6 +12,7 @@
     <string name="all_apps">All apps</string>
     <string name="back">Back</string>
     <string name="filter_apps">Filter apps</string>
+    <string name="loading_apps">Loading apps</string>
     <string name="customize_launcher">Customize launcher</string>
     <string name="visible_home_apps">Visible home apps</string>
     <string name="home_apps_section">Home apps</string>

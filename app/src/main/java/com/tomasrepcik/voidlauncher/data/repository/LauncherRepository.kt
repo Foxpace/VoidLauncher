@@ -1,6 +1,7 @@
 package com.tomasrepcik.voidlauncher.data.repository
 
 import androidx.room.withTransaction
+import com.tomasrepcik.voidlauncher.data.local.InstalledAppEntity
 import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.local.LauncherPreferencesEntity
 import com.tomasrepcik.voidlauncher.data.local.PinnedAppEntity
@@ -15,10 +16,17 @@ import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.source.InstalledAppsDataSource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.shareIn
 
 private const val HOME_SECTION = "HOME"
 private const val TYPE_APP = "APP"
@@ -43,13 +51,29 @@ interface LauncherRepository {
 
 class DefaultLauncherRepository(
     private val database: LauncherDatabase,
-    installedAppsDataSource: InstalledAppsDataSource,
+    private val installedAppsDataSource: InstalledAppsDataSource,
 ) : LauncherRepository {
 
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pinnedAppDao = database.pinnedAppDao()
     private val shortcutDao = database.shortcutDao()
     private val preferencesDao = database.preferencesDao()
-    private val installedAppsFlow = installedAppsDataSource.observeInstalledApps().distinctUntilChanged()
+    private val installedAppDao = database.installedAppDao()
+    private val installedAppsFlow = installedAppDao.observeAll()
+        .map { entities -> entities.map(InstalledAppEntity::toModel) }
+        .distinctUntilChanged()
+        .shareIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            replay = 1,
+        )
+
+    init {
+        installedAppsDataSource.observeInstalledApps()
+            .distinctUntilChanged()
+            .onEach(::syncInstalledAppsCache)
+            .launchIn(repositoryScope)
+    }
 
     override fun observeInstalledApps(): Flow<List<InstalledApp>> = installedAppsFlow
 
@@ -58,11 +82,16 @@ class DefaultLauncherRepository(
             pinnedAppDao.observeSection(HOME_SECTION),
             installedAppsFlow,
         ) { pinnedApps, installedApps ->
-            val appMap = installedApps.associateBy(InstalledApp::key)
+            pinnedApps to installedApps.associateBy(InstalledApp::key)
+        }.map { (pinnedApps, appMap) ->
             pinnedApps.mapNotNull { entity ->
-                appMap[AppKey(entity.packageName, entity.activityName)]?.let { app ->
+                val key = AppKey(entity.packageName, entity.activityName)
+                resolveInstalledApp(key, appMap[key])?.let { app ->
                     if (entity.labelOverride != null) {
-                        app.copy(label = entity.labelOverride)
+                        app.copy(
+                            label = entity.labelOverride,
+                            sortLabel = entity.labelOverride.lowercase(),
+                        )
                     } else {
                         app
                     }
@@ -80,7 +109,8 @@ class DefaultLauncherRepository(
             shortcutDao.observeAll(),
             installedAppsFlow,
         ) { shortcuts, installedApps ->
-            val appMap = installedApps.associateBy(InstalledApp::key)
+            shortcuts to installedApps.associateBy(InstalledApp::key)
+        }.map { (shortcuts, appMap) ->
             shortcuts.mapNotNull { entity ->
                 val slot = entity.slot.toShortcutSlot() ?: return@mapNotNull null
                 when (entity.shortcutType) {
@@ -99,13 +129,12 @@ class DefaultLauncherRepository(
                     TYPE_APP -> {
                         val packageName = entity.packageName ?: return@mapNotNull null
                         val activityName = entity.activityName ?: return@mapNotNull null
-                        val app = appMap[AppKey(packageName, activityName)]
+                        val appKey = AppKey(packageName, activityName)
+                        val app = resolveInstalledApp(appKey, appMap[appKey])
                         ResolvedShortcut(
                             slot = slot,
                             label = entity.customLabel ?: app?.label ?: "Unavailable",
-                            selection = ShortcutSelection.AppShortcut(
-                                AppKey(packageName, activityName)
-                            ),
+                            selection = ShortcutSelection.AppShortcut(appKey),
                             installedApp = app,
                             isAvailable = app != null,
                         )
@@ -253,6 +282,34 @@ class DefaultLauncherRepository(
         )
     }
 
+    private suspend fun syncInstalledAppsCache(apps: List<InstalledApp>) {
+        database.withTransaction {
+            installedAppDao.deleteAll()
+            installedAppDao.insertAll(apps.map(InstalledApp::toEntity))
+        }
+    }
+
+    private suspend fun resolveInstalledApp(
+        appKey: AppKey,
+        cachedApp: InstalledApp?,
+    ): InstalledApp? = cachedApp ?: installedAppsDataSource.getInstalledApp(appKey)
+
     private fun String.toShortcutSlot(): ShortcutSlot? =
         ShortcutSlot.entries.firstOrNull { it.name == this }
 }
+
+private fun InstalledApp.toEntity(): InstalledAppEntity = InstalledAppEntity(
+    packageName = key.packageName,
+    activityName = key.activityName,
+    label = label,
+    sortLabel = sortLabel,
+)
+
+private fun InstalledAppEntity.toModel(): InstalledApp = InstalledApp(
+    key = AppKey(
+        packageName = packageName,
+        activityName = activityName,
+    ),
+    label = label,
+    sortLabel = sortLabel,
+)

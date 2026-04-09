@@ -22,6 +22,7 @@ data class DrawerUiState(
     val query: String = "",
     val apps: List<InstalledApp> = emptyList(),
     val pinnedAppKeys: Set<AppKey> = emptySet(),
+    val isLoading: Boolean = true,
 )
 
 class DrawerViewModel(
@@ -49,11 +50,12 @@ class DrawerViewModel(
             query = currentQuery,
             apps = filteredApps,
             pinnedAppKeys = pinnedKeys,
+            isLoading = false,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = DrawerUiState(),
+        initialValue = DrawerUiState(isLoading = true),
     )
 
     fun onQueryChange(value: String) {

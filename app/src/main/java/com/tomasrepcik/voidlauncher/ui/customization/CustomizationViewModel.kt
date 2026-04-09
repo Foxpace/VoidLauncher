@@ -54,6 +54,7 @@ class CustomizationViewModel(
 data class ShortcutPickerUiState(
     val query: String = "",
     val apps: List<InstalledApp> = emptyList(),
+    val isLoading: Boolean = true,
 )
 
 class ShortcutPickerViewModel(
@@ -77,11 +78,12 @@ class ShortcutPickerViewModel(
         ShortcutPickerUiState(
             query = currentQuery,
             apps = filtered,
+            isLoading = false,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = ShortcutPickerUiState(),
+        initialValue = ShortcutPickerUiState(isLoading = true),
     )
 
     fun onQueryChange(value: String) {

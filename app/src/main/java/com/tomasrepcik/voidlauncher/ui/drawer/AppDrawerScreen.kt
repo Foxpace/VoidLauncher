@@ -25,8 +25,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +44,7 @@ import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.domain.search.searchSectionLetter
 import com.tomasrepcik.voidlauncher.ui.components.AppIcon
+import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchField
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
 import kotlinx.coroutines.launch
 
@@ -104,15 +105,22 @@ fun AppDrawerScreen(
                     }
                 }
 
-                OutlinedTextField(
+                LauncherSearchField(
                     value = state.query,
                     onValueChange = onQueryChange,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("drawer_search_field"),
-                    placeholder = { Text(stringResource(R.string.filter_apps)) },
-                    singleLine = true,
+                        .fillMaxWidth(),
+                    testTag = "drawer_search_field",
+                    placeholderText = stringResource(R.string.filter_apps),
                 )
+
+                if (state.isLoading && state.apps.isEmpty()) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("drawer_loading_indicator"),
+                    )
+                }
 
                 Row(
                     modifier = Modifier.fillMaxSize(),

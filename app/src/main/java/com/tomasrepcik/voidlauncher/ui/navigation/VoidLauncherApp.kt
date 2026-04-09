@@ -124,6 +124,8 @@ fun VoidLauncherApp() {
                         onShortcutClicked = viewModel::onShortcutClicked,
                         onOpenDrawer = { backStack.pushSingleTop(AppListRoute) },
                         onRemoveHomeApp = viewModel::removeHomeApp,
+                        onRenameHomeApp = viewModel::renameHomeApp,
+                        onUninstallApp = viewModel::uninstallApp,
                         onReorderHomeApps = viewModel::reorderHomeApps,
                     )
                 }

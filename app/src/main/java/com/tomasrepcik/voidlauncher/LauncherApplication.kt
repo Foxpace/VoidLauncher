@@ -2,6 +2,8 @@ package com.tomasrepcik.voidlauncher
 
 import android.app.Application
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.repository.DefaultLauncherRepository
 import com.tomasrepcik.voidlauncher.data.source.PackageManagerInstalledAppsDataSource
@@ -17,7 +19,10 @@ class LauncherApplication : Application() {
             applicationContext,
             LauncherDatabase::class.java,
             "void-launcher.db"
-        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+        )
+            .addMigrations(MIGRATION_2_3)
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
 
         appContainer = AppContainer(
             launcherRepository = DefaultLauncherRepository(
@@ -25,6 +30,22 @@ class LauncherApplication : Application() {
                 installedAppsDataSource = PackageManagerInstalledAppsDataSource(applicationContext)
             ),
             searchResolver = SearchResolver()
+        )
+    }
+}
+
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `installed_apps` (
+                `packageName` TEXT NOT NULL,
+                `activityName` TEXT NOT NULL,
+                `label` TEXT NOT NULL,
+                `sortLabel` TEXT NOT NULL,
+                PRIMARY KEY(`packageName`, `activityName`)
+            )
+            """.trimIndent()
         )
     }
 }

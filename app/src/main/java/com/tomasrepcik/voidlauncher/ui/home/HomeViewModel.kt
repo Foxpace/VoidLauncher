@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,6 +28,7 @@ data class HomeUiState(
     val shortcuts: List<ResolvedShortcut> = emptyList(),
     val hintMessage: String? = null,
     val searchSuggestions: List<InstalledApp> = emptyList(),
+    val isLoading: Boolean = true,
 )
 
 class HomeViewModel(
@@ -45,32 +47,52 @@ class HomeViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = emptyList(),
     )
+    private val areInstalledAppsLoaded = repository.observeInstalledApps()
+        .map { true }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false,
+        )
 
     val uiState: StateFlow<HomeUiState> = combine(
-        combine(query, hintMessage, installedApps) { q, h, apps -> Triple(q, h, apps) },
+        combine(
+            query,
+            hintMessage,
+            installedApps,
+            areInstalledAppsLoaded,
+        ) { q, h, apps, isLoaded ->
+            HomeInputs(
+                query = q,
+                hintMessage = h,
+                apps = apps,
+                isLoaded = isLoaded,
+            )
+        },
         repository.observePinnedHomeApps(),
         repository.observeBottomShortcuts(),
-    ) { (currentQuery, currentHint, allApps), homeApps, shortcuts ->
-        val suggestions = if (currentQuery.isNotBlank()) {
-            allApps.filter { app ->
-                matchesSearchQuery(app.label, currentQuery)
+    ) { inputs, homeApps, shortcuts ->
+        val suggestions = if (inputs.query.isNotBlank()) {
+            inputs.apps.filter { app ->
+                matchesSearchQuery(app.label, inputs.query)
             }.sortedBy { app ->
-                if (startsWithSearchQuery(app.label, currentQuery)) 0 else 1
+                if (startsWithSearchQuery(app.label, inputs.query)) 0 else 1
             }.take(5)
         } else {
             emptyList()
         }
         HomeUiState(
-            query = currentQuery,
+            query = inputs.query,
             homeApps = homeApps,
             shortcuts = shortcuts.sortedBy { it.slot.ordinal },
-            hintMessage = currentHint,
+            hintMessage = inputs.hintMessage,
             searchSuggestions = suggestions,
+            isLoading = !inputs.isLoaded,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = HomeUiState(),
+        initialValue = HomeUiState(isLoading = true),
     )
 
     init {
@@ -130,9 +152,21 @@ class HomeViewModel(
         }
     }
 
+    fun renameHomeApp(app: InstalledApp, newLabel: String?) {
+        viewModelScope.launch {
+            repository.renameHomeApp(app.key, newLabel)
+        }
+    }
+
     fun reorderHomeApps(fromIndex: Int, toIndex: Int) {
         viewModelScope.launch {
             repository.reorderHomeApps(fromIndex, toIndex)
+        }
+    }
+
+    fun uninstallApp(app: InstalledApp) {
+        viewModelScope.launch {
+            commandChannel.send(LauncherCommand.UninstallApp(app))
         }
     }
 
@@ -181,3 +215,10 @@ class HomeViewModel(
         }
     }
 }
+
+private data class HomeInputs(
+    val query: String,
+    val hintMessage: String?,
+    val apps: List<InstalledApp>,
+    val isLoaded: Boolean,
+)

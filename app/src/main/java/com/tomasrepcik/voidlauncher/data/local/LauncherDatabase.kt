@@ -37,6 +37,14 @@ data class LauncherPreferencesEntity(
     val homeAppCount: Int,
 )
 
+@Entity(tableName = "installed_apps", primaryKeys = ["packageName", "activityName"])
+data class InstalledAppEntity(
+    val packageName: String,
+    val activityName: String,
+    val label: String,
+    val sortLabel: String,
+)
+
 @Dao
 interface PinnedAppDao {
     @Query("SELECT * FROM pinned_apps WHERE section = :section ORDER BY position ASC")
@@ -79,13 +87,31 @@ interface PreferencesDao {
     suspend fun upsert(entity: LauncherPreferencesEntity)
 }
 
+@Dao
+interface InstalledAppDao {
+    @Query("SELECT * FROM installed_apps ORDER BY sortLabel ASC")
+    fun observeAll(): Flow<List<InstalledAppEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entities: List<InstalledAppEntity>)
+
+    @Query("DELETE FROM installed_apps")
+    suspend fun deleteAll()
+}
+
 @Database(
-    entities = [PinnedAppEntity::class, ShortcutEntity::class, LauncherPreferencesEntity::class],
-    version = 2,
+    entities = [
+        PinnedAppEntity::class,
+        ShortcutEntity::class,
+        LauncherPreferencesEntity::class,
+        InstalledAppEntity::class,
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {
     abstract fun pinnedAppDao(): PinnedAppDao
     abstract fun shortcutDao(): ShortcutDao
     abstract fun preferencesDao(): PreferencesDao
+    abstract fun installedAppDao(): InstalledAppDao
 }
