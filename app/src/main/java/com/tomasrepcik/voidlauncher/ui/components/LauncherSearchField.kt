@@ -17,7 +17,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
@@ -34,9 +33,7 @@ fun LauncherSearchField(
     onValueChange: (String) -> Unit,
     placeholderText: String,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester? = null,
-    testTag: String? = null,
-    onSubmit: (() -> Unit)? = null,
+    options: LauncherSearchOptions = LauncherSearchOptions(),
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -49,7 +46,7 @@ fun LauncherSearchField(
 
     fun submit() {
         dismiss()
-        onSubmit?.invoke()
+        options.onSubmit?.invoke()
     }
 
     OutlinedTextField(
@@ -57,8 +54,8 @@ fun LauncherSearchField(
         onValueChange = onValueChange,
         modifier = modifier
             .then(
-                if (focusRequester != null) {
-                    Modifier.focusRequester(focusRequester)
+                if (options.focusRequester != null) {
+                    Modifier.focusRequester(options.focusRequester)
                 } else {
                     Modifier
                 }
@@ -66,35 +63,39 @@ fun LauncherSearchField(
             .onFocusChanged { isFocused = it.isFocused }
             .fillMaxWidth()
             .then(
-                if (testTag != null) {
-                    Modifier.testTag(testTag)
+                if (options.testTag != null) {
+                    Modifier.testTag(options.testTag)
                 } else {
                     Modifier
                 }
             ),
         placeholder = { Text(placeholderText) },
         trailingIcon = {
-            val icon = if (isFocused) Icons.Outlined.Close else Icons.Outlined.Search
-            val contentDescription = if (isFocused) {
-                stringResource(R.string.dismiss_search)
-            } else {
-                stringResource(R.string.search)
-            }
-            IconButton(onClick = if (isFocused) ::dismiss else ::submit) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = contentDescription,
-                )
-            }
+            SearchTrailingIcon(isFocused, ::dismiss, ::submit)
         },
         shape = RoundedCornerShape(28.dp),
         singleLine = true,
         keyboardOptions = KeyboardOptions(
-            imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Done,
+            imeAction = if (options.onSubmit != null) ImeAction.Search else ImeAction.Done,
         ),
         keyboardActions = KeyboardActions(
             onSearch = { submit() },
             onDone = { submit() },
         ),
     )
+}
+
+@Composable
+private fun SearchTrailingIcon(
+    isFocused: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: () -> Unit,
+) {
+    val icon = if (isFocused) Icons.Outlined.Close else Icons.Outlined.Search
+    val contentDescription = stringResource(
+        if (isFocused) R.string.dismiss_search else R.string.search
+    )
+    IconButton(onClick = if (isFocused) onDismiss else onSubmit) {
+        Icon(imageVector = icon, contentDescription = contentDescription)
+    }
 }

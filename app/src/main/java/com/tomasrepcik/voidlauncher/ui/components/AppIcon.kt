@@ -24,11 +24,13 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val ICON_BITMAP_SIZE_PX = 144
 private const val ICON_CACHE_BYTES = 12 * 1024 * 1024
+private val appIconLoader = AppIconLoader()
 
 @Composable
 fun AppIcon(
@@ -69,27 +71,25 @@ private fun rememberAppIconPainter(
         if (value != null) {
             return@produceState
         }
-        value = withContext(Dispatchers.IO) {
-            loadIconBitmap(context, app)?.asImageBitmap()
-        }
+        value = appIconLoader.load(context, app)?.asImageBitmap()
     }
     return bitmap?.let(::BitmapPainter)
 }
 
-private fun loadIconBitmap(
-    context: Context,
-    app: InstalledApp,
-): Bitmap? {
-    val cacheKey = app.cacheKey()
-    AppIconBitmapCache.get(cacheKey)?.let { return it }
+private class AppIconLoader(
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) {
+    suspend fun load(context: Context, app: InstalledApp): Bitmap? = withContext(ioDispatcher) {
+        val cacheKey = app.cacheKey()
+        val cachedBitmap = AppIconBitmapCache.get(cacheKey)
+        cachedBitmap ?: loadActivityIcon(context, app)?.toCachedBitmap(cacheKey)
+    }
 
-    val drawable = runCatching {
+    private fun loadActivityIcon(context: Context, app: InstalledApp): Drawable? = runCatching {
         context.packageManager.getActivityIcon(
             ComponentName(app.key.packageName, app.key.activityName)
         )
-    }.getOrNull() ?: return null
-
-    return drawable.toCachedBitmap(cacheKey)
+    }.getOrNull()
 }
 
 private fun Drawable.toCachedBitmap(cacheKey: String): Bitmap {

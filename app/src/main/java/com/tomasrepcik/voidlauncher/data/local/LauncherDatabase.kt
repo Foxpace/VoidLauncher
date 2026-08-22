@@ -59,7 +59,10 @@ interface PinnedAppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(entities: List<PinnedAppEntity>)
 
-    @Query("UPDATE pinned_apps SET labelOverride = :label WHERE section = :section AND packageName = :packageName AND activityName = :activityName")
+    @Query(
+        "UPDATE pinned_apps SET labelOverride = :label " +
+            "WHERE section = :section AND packageName = :packageName AND activityName = :activityName"
+    )
     suspend fun updateLabelOverride(section: String, packageName: String, activityName: String, label: String?)
 }
 

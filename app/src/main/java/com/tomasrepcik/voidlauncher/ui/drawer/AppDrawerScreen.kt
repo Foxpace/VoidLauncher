@@ -42,22 +42,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.domain.search.searchSectionLetter
+import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.ui.components.AppIcon
 import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchField
+import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchOptions
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
+import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationActions
 import kotlinx.coroutines.launch
+
+private data class DrawerAppRowActions(
+    val onClick: () -> Unit,
+    val onAddToHome: () -> Unit,
+    val onRemoveFromHome: () -> Unit,
+    val onUninstall: () -> Unit,
+)
 
 @Composable
 fun AppDrawerScreen(
     state: DrawerUiState,
-    onBack: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onQueryChange: (String) -> Unit,
-    onAppClicked: (InstalledApp) -> Unit,
-    onAddHomeApp: (InstalledApp) -> Unit,
-    onRemoveHomeApp: (InstalledApp) -> Unit,
-    onUninstallApp: (InstalledApp) -> Unit,
+    actions: AppDrawerActions,
 ) {
     val listState = rememberLazyListState()
     val alphabetIndex = remember(state.apps) { buildAlphabetIndex(state.apps) }
@@ -70,7 +73,7 @@ fun AppDrawerScreen(
     ) {
         SwipeNavigationContainer(
             modifier = Modifier.fillMaxSize(),
-            onClose = onBack,
+            actions = SwipeNavigationActions(onClose = actions.onBack),
         ) {
             Column(
                 modifier = Modifier
@@ -84,7 +87,7 @@ fun AppDrawerScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = actions.onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = stringResource(R.string.back),
@@ -97,7 +100,7 @@ fun AppDrawerScreen(
                             .weight(1f)
                             .padding(start = 4.dp),
                     )
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(onClick = actions.onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = stringResource(R.string.customize_launcher),
@@ -107,11 +110,11 @@ fun AppDrawerScreen(
 
                 LauncherSearchField(
                     value = state.query,
-                    onValueChange = onQueryChange,
+                    onValueChange = actions.onQueryChange,
                     modifier = Modifier
                         .fillMaxWidth(),
-                    testTag = "drawer_search_field",
                     placeholderText = stringResource(R.string.filter_apps),
+                    options = LauncherSearchOptions(testTag = "drawer_search_field"),
                 )
 
                 if (state.isLoading && state.apps.isEmpty()) {
@@ -152,10 +155,12 @@ fun AppDrawerScreen(
                             DrawerAppRow(
                                 app = app,
                                 isPinned = app.key in state.pinnedAppKeys,
-                                onClick = { onAppClicked(app) },
-                                onAddToHome = { onAddHomeApp(app) },
-                                onRemoveFromHome = { onRemoveHomeApp(app) },
-                                onUninstall = { onUninstallApp(app) },
+                                actions = DrawerAppRowActions(
+                                    onClick = { actions.onAppClicked(app) },
+                                    onAddToHome = { actions.onAddHomeApp(app) },
+                                    onRemoveFromHome = { actions.onRemoveHomeApp(app) },
+                                    onUninstall = { actions.onUninstallApp(app) },
+                                ),
                             )
                         }
                     }
@@ -181,10 +186,7 @@ fun AppDrawerScreen(
 private fun DrawerAppRow(
     app: InstalledApp,
     isPinned: Boolean,
-    onClick: () -> Unit,
-    onAddToHome: () -> Unit,
-    onRemoveFromHome: () -> Unit,
-    onUninstall: () -> Unit,
+    actions: DrawerAppRowActions,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -194,7 +196,7 @@ private fun DrawerAppRow(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
                 .combinedClickable(
-                    onClick = onClick,
+                    onClick = actions.onClick,
                     onLongClick = { showMenu = true },
                 )
                 .background(
@@ -223,7 +225,7 @@ private fun DrawerAppRow(
                     text = { Text(stringResource(R.string.remove_from_home)) },
                     onClick = {
                         showMenu = false
-                        onRemoveFromHome()
+                        actions.onRemoveFromHome()
                     },
                 )
             } else {
@@ -231,7 +233,7 @@ private fun DrawerAppRow(
                     text = { Text(stringResource(R.string.add_to_home)) },
                     onClick = {
                         showMenu = false
-                        onAddToHome()
+                        actions.onAddToHome()
                     },
                 )
             }
@@ -239,7 +241,7 @@ private fun DrawerAppRow(
                 text = { Text(stringResource(R.string.uninstall)) },
                 onClick = {
                     showMenu = false
-                    onUninstall()
+                    actions.onUninstall()
                 },
             )
         }
@@ -283,5 +285,7 @@ private fun buildAlphabetIndex(apps: List<InstalledApp>): Map<Char, Int> {
 }
 
 private fun sectionLetterFor(app: InstalledApp): Char {
-    return searchSectionLetter(app.label)
+    return installedAppSearch.sectionLetter(app.label)
 }
+
+private val installedAppSearch = InstalledAppSearch()

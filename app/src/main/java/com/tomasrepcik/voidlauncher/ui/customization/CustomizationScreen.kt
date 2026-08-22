@@ -39,6 +39,7 @@ import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.ui.components.AppIcon
 import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchField
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
+import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationActions
 
 @Composable
 fun CustomizationScreen(
@@ -49,7 +50,7 @@ fun CustomizationScreen(
     Surface(modifier = Modifier.fillMaxSize()) {
         SwipeNavigationContainer(
             modifier = Modifier.fillMaxSize(),
-            onClose = onBack,
+            actions = SwipeNavigationActions(onClose = onBack),
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -103,16 +104,12 @@ fun CustomizationScreen(
 fun ShortcutPickerScreen(
     slot: ShortcutSlot,
     state: ShortcutPickerUiState,
-    onBack: () -> Unit,
-    onQueryChange: (String) -> Unit,
-    onContactsSelected: () -> Unit,
-    onCameraSelected: () -> Unit,
-    onAppSelected: (InstalledApp) -> Unit,
+    actions: ShortcutPickerActions,
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
         SwipeNavigationContainer(
             modifier = Modifier.fillMaxSize(),
-            onClose = onBack,
+            actions = SwipeNavigationActions(onClose = actions.onBack),
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -126,7 +123,7 @@ fun ShortcutPickerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = actions.onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
@@ -155,10 +152,10 @@ fun ShortcutPickerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        OutlinedButton(onClick = onContactsSelected) {
+                        OutlinedButton(onClick = actions.onContactsSelected) {
                             Text(stringResource(R.string.contacts))
                         }
-                        OutlinedButton(onClick = onCameraSelected) {
+                        OutlinedButton(onClick = actions.onCameraSelected) {
                             Text(stringResource(R.string.camera))
                         }
                     }
@@ -175,7 +172,7 @@ fun ShortcutPickerScreen(
                 item {
                     LauncherSearchField(
                         value = state.query,
-                        onValueChange = onQueryChange,
+                        onValueChange = actions.onQueryChange,
                         modifier = Modifier.fillMaxWidth(),
                         placeholderText = stringResource(R.string.filter_apps),
                     )
@@ -193,7 +190,7 @@ fun ShortcutPickerScreen(
                 ) { app ->
                     ShortcutAppRow(
                         app = app,
-                        onSelect = { onAppSelected(app) },
+                        onSelect = { actions.onAppSelected(app) },
                     )
                 }
             }

@@ -45,9 +45,15 @@
     <string name="rename_app">Rename app</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
     <string name="home_empty_hint">Swipe left for all apps.\nLong-press an app to add it here.</string>
     <string name="app_missing">This app is no longer installed.</string>
     <string name="system_app_info_opened">This is a system app. Opened App info instead.</string>
     <string name="uninstall_blocked_info_opened">Android blocked the uninstall request. Opened App info instead.</string>
     <string name="uninstall_unavailable_info_opened">Could not open the system uninstaller. Opened App info instead.</string>
+    <string name="error_app_unavailable">This app is no longer available.</string>
+    <string name="error_destination_unavailable">No app can open this action.</string>
+    <string name="error_action_blocked">Android blocked this action.</string>
+    <string name="error_storage_initialization_failed">VoidLauncher could not load its saved launcher data.</string>
+    <string name="error_storage_write_failed">VoidLauncher could not save that change.</string>
 </resources>

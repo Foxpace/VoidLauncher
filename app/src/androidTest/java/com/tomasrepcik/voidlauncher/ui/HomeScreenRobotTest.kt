@@ -16,50 +16,124 @@ import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.ui.drawer.AppDrawerScreen
+import com.tomasrepcik.voidlauncher.ui.drawer.AppDrawerActions
 import com.tomasrepcik.voidlauncher.ui.drawer.DrawerUiState
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
+import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeUiState
 import com.tomasrepcik.voidlauncher.ui.theme.VoidLauncherTheme
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
 
 class HomeScreenRobotTest {
     @get:Rule
     val composeRule = createComposeRule()
 
     @Test
-    fun homeRobot_rendersPinnedAppsAndSearchActions() {
+    fun givenHomeScreen_whenSearchingAndOpeningBrowser_thenPinnedAppsAndSearchActionsAreDisplayed() {
+        // GIVEN
         val robot = HomeRobot(composeRule)
         robot.launch()
-        robot.assertHomeVisible()
+
+        // WHEN
         robot.enterSearch("spotify")
-        robot.assertSearchActionsVisible()
         robot.tapBrowser()
+
+        // THEN
+        robot.assertHomeVisible()
+        robot.assertSearchActionsVisible()
+        assertEquals(1, robot.browserSearchRequests)
     }
 
     @Test
-    fun drawerRobot_rendersSearchAndAlphabetList() {
+    fun givenAppDrawer_whenFilteringApps_thenSearchAndMatchingAppAreDisplayed() {
+        // GIVEN
         val robot = DrawerRobot(composeRule)
         robot.launch()
-        robot.assertDrawerVisible()
+
+        // WHEN
         robot.filter("cam")
+
+        // THEN
+        robot.assertDrawerVisible()
+    }
+
+    @Test
+    fun givenHomeWithoutPinnedApps_whenAddAppIsTapped_thenDrawerOpenIsRequested() {
+        // GIVEN
+        val robot = HomeRobot(composeRule)
+        robot.launch(homeApps = emptyList())
+
+        // WHEN
+        robot.tapAddApp()
+
+        // THEN
+        assertEquals(1, robot.drawerOpenRequests)
+    }
+
+    @Test
+    fun givenPinnedHomeApp_whenAppIsTapped_thenAppOpenIsRequested() {
+        // GIVEN
+        val robot = HomeRobot(composeRule)
+        robot.launch()
+
+        // WHEN
+        robot.tapHomeApp("Signal")
+
+        // THEN
+        assertEquals("Signal", robot.openedAppLabel)
+    }
+
+    @Test
+    fun givenBottomShortcut_whenShortcutIsTapped_thenShortcutOpenIsRequested() {
+        // GIVEN
+        val robot = HomeRobot(composeRule)
+        robot.launch()
+
+        // WHEN
+        robot.tapLeftShortcut()
+
+        // THEN
+        assertEquals(ShortcutSlot.LEFT, robot.openedShortcutSlot)
+    }
+
+    @Test
+    fun givenAppDrawer_whenAppIsTapped_thenAppOpenIsRequested() {
+        // GIVEN
+        val robot = DrawerRobot(composeRule)
+        robot.launch()
+
+        // WHEN
+        robot.tapApp("Camera")
+
+        // THEN
+        assertEquals("Camera", robot.openedAppLabel)
     }
 }
 
 private class HomeRobot(
     private val composeRule: androidx.compose.ui.test.junit4.ComposeContentTestRule,
 ) {
-    fun launch() {
+    var drawerOpenRequests = 0
+        private set
+    var browserSearchRequests = 0
+        private set
+    var openedAppLabel: String? = null
+        private set
+    var openedShortcutSlot: ShortcutSlot? = null
+        private set
+
+    fun launch(
+        homeApps: List<InstalledApp> = listOf(app("Signal"), app("Spotify")),
+    ) {
         composeRule.setContent {
             VoidLauncherTheme {
                 var query by remember { mutableStateOf("") }
                 HomeScreen(
                     state = HomeUiState(
                         query = query,
-                        homeApps = listOf(
-                            app("Signal"),
-                            app("Spotify"),
-                        ),
+                        homeApps = homeApps,
                         shortcuts = listOf(
                             ResolvedShortcut(
                                 slot = ShortcutSlot.LEFT,
@@ -73,17 +147,21 @@ private class HomeRobot(
                             ),
                         ),
                     ),
-                    onQueryChange = { query = it },
-                    onPrimarySearch = {},
-                    onBrowserSearch = {},
-                    onPlayStoreSearch = {},
-                    onMapsSearch = {},
-                    onAppHint = {},
-                    onAppClicked = {},
-                    onShortcutClicked = {},
-                    onOpenDrawer = {},
-                    onRemoveHomeApp = {},
-                    onReorderHomeApps = { _, _ -> },
+                    actions = HomeActions(
+                        onQueryChange = { query = it },
+                        onPrimarySearch = {},
+                        onBrowserSearch = { browserSearchRequests += 1 },
+                        onPlayStoreSearch = {},
+                        onMapsSearch = {},
+                        onAppHint = {},
+                        onAppClicked = { openedAppLabel = it.label },
+                        onShortcutClicked = { openedShortcutSlot = it.slot },
+                        onOpenDrawer = { drawerOpenRequests += 1 },
+                        onRemoveHomeApp = {},
+                        onRenameHomeApp = { _, _ -> },
+                        onUninstallApp = {},
+                        onReorderHomeApps = { _, _ -> },
+                    ),
                 )
             }
         }
@@ -108,11 +186,26 @@ private class HomeRobot(
     fun tapBrowser() {
         composeRule.onNodeWithTag("home_browser_button").performClick()
     }
+
+    fun tapAddApp() {
+        composeRule.onNodeWithTag("home_add_app_button").performClick()
+    }
+
+    fun tapHomeApp(label: String) {
+        composeRule.onNodeWithTag("home_app_$label").performClick()
+    }
+
+    fun tapLeftShortcut() {
+        composeRule.onNodeWithTag("shortcut_LEFT").performClick()
+    }
 }
 
 private class DrawerRobot(
     private val composeRule: androidx.compose.ui.test.junit4.ComposeContentTestRule,
 ) {
+    var openedAppLabel: String? = null
+        private set
+
     fun launch() {
         composeRule.setContent {
             VoidLauncherTheme {
@@ -124,13 +217,15 @@ private class DrawerRobot(
                             app("Signal"),
                         ),
                     ),
-                    onBack = {},
-                    onOpenSettings = {},
-                    onQueryChange = {},
-                    onAppClicked = {},
-                    onAddHomeApp = {},
-                    onRemoveHomeApp = {},
-                    onUninstallApp = {},
+                    actions = AppDrawerActions(
+                        onBack = {},
+                        onOpenSettings = {},
+                        onQueryChange = {},
+                        onAppClicked = { openedAppLabel = it.label },
+                        onAddHomeApp = {},
+                        onRemoveHomeApp = {},
+                        onUninstallApp = {},
+                    ),
                 )
             }
         }
@@ -144,6 +239,10 @@ private class DrawerRobot(
 
     fun filter(text: String) {
         composeRule.onNodeWithTag("drawer_search_field").performTextInput(text)
+    }
+
+    fun tapApp(label: String) {
+        composeRule.onNodeWithText(label).performClick()
     }
 }
 

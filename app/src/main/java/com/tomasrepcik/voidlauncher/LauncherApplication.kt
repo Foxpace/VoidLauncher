@@ -5,9 +5,9 @@ import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
-import com.tomasrepcik.voidlauncher.data.repository.DefaultLauncherRepository
+import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.source.PackageManagerInstalledAppsDataSource
-import com.tomasrepcik.voidlauncher.domain.search.SearchResolver
+import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 
 class LauncherApplication : Application() {
     lateinit var appContainer: AppContainer
@@ -25,11 +25,11 @@ class LauncherApplication : Application() {
             .build()
 
         appContainer = AppContainer(
-            launcherRepository = DefaultLauncherRepository(
+            launcherRepository = LauncherRepository(
                 database = database,
                 installedAppsDataSource = PackageManagerInstalledAppsDataSource(applicationContext)
             ),
-            searchResolver = SearchResolver()
+            installedAppSearch = InstalledAppSearch()
         )
     }
 }
@@ -51,6 +51,6 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
 }
 
 data class AppContainer(
-    val launcherRepository: DefaultLauncherRepository,
-    val searchResolver: SearchResolver,
+    val launcherRepository: LauncherRepository,
+    val installedAppSearch: InstalledAppSearch,
 )

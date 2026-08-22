@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -24,13 +25,14 @@ interface InstalledAppsDataSource {
 
 class PackageManagerInstalledAppsDataSource(
     private val context: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : InstalledAppsDataSource {
 
     private val packageManager: PackageManager = context.packageManager
 
     override fun observeInstalledApps(): Flow<List<InstalledApp>> = callbackFlow {
         fun emitApps() {
-            launch(Dispatchers.IO) {
+            launch(ioDispatcher) {
                 trySend(loadInstalledApps())
             }
         }
@@ -62,7 +64,7 @@ class PackageManagerInstalledAppsDataSource(
         }
     }
 
-    override suspend fun getInstalledApp(appKey: AppKey): InstalledApp? = withContext(Dispatchers.IO) {
+    override suspend fun getInstalledApp(appKey: AppKey): InstalledApp? = withContext(ioDispatcher) {
         runCatching { loadInstalledApp(appKey) }.getOrNull()
     }
 

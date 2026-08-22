@@ -9,6 +9,8 @@ import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
+import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
+import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,11 +24,13 @@ data class CustomizationUiState(
 )
 
 class CustomizationViewModel(
-    private val repository: LauncherRepository,
+    repository: LauncherRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<CustomizationUiState> =
-        repository.observeBottomShortcuts().map { shortcuts ->
+        repository.state.map { repositoryState ->
+            val shortcuts = (repositoryState as? LauncherRepositoryState.Ready)
+                ?.launcher?.bottomShortcuts.orEmpty()
             CustomizationUiState(
                 shortcuts = shortcuts.sortedBy { it.slot.ordinal },
             )
@@ -35,12 +39,6 @@ class CustomizationViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = CustomizationUiState(),
         )
-
-    init {
-        viewModelScope.launch {
-            repository.ensureDefaults()
-        }
-    }
 
     companion object {
         fun provideFactory(repository: LauncherRepository) = viewModelFactory {
@@ -60,21 +58,19 @@ data class ShortcutPickerUiState(
 class ShortcutPickerViewModel(
     private val slot: ShortcutSlot,
     private val repository: LauncherRepository,
+    installedAppSearch: InstalledAppSearch,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
 
     val uiState: StateFlow<ShortcutPickerUiState> = combine(
-        repository.observeInstalledApps(),
+        repository.state,
         query,
-    ) { installedApps, currentQuery ->
-        val filtered = if (currentQuery.isBlank()) {
-            installedApps
-        } else {
-            installedApps.filter {
-                it.label.contains(currentQuery.trim(), ignoreCase = true)
-            }
-        }
+    ) { repositoryState, currentQuery ->
+        val installedApps = (repositoryState as? LauncherRepositoryState.Ready)
+            ?.launcher?.installedApps
+            ?: return@combine ShortcutPickerUiState(query = currentQuery, isLoading = true)
+        val filtered = installedAppSearch.filter(currentQuery, installedApps)
         ShortcutPickerUiState(
             query = currentQuery,
             apps = filtered,
@@ -112,9 +108,10 @@ class ShortcutPickerViewModel(
         fun provideFactory(
             repository: LauncherRepository,
             slot: ShortcutSlot,
+            installedAppSearch: InstalledAppSearch,
         ) = viewModelFactory {
             initializer {
-                ShortcutPickerViewModel(slot, repository)
+                ShortcutPickerViewModel(slot, repository, installedAppSearch)
             }
         }
     }

@@ -7,17 +7,15 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
-import com.tomasrepcik.voidlauncher.domain.search.SearchResolution
-import com.tomasrepcik.voidlauncher.domain.search.SearchResolver
-import com.tomasrepcik.voidlauncher.domain.search.matchesSearchQuery
-import com.tomasrepcik.voidlauncher.domain.search.startsWithSearchQuery
-import com.tomasrepcik.voidlauncher.ui.navigation.LauncherCommand
+import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
+import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
+import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
+import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,61 +31,31 @@ data class HomeUiState(
 
 class HomeViewModel(
     private val repository: LauncherRepository,
-    private val searchResolver: SearchResolver,
+    private val installedAppSearch: InstalledAppSearch,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
     private val hintMessage = MutableStateFlow<String?>(null)
-    private val commandChannel = Channel<LauncherCommand>(capacity = Channel.BUFFERED)
+    private val actionChannel = Channel<LauncherAction>(capacity = Channel.BUFFERED)
+    private val feedbackChannel = Channel<String>(capacity = Channel.BUFFERED)
 
-    val commands = commandChannel.receiveAsFlow()
-
-    private val installedApps = repository.observeInstalledApps().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = emptyList(),
-    )
-    private val areInstalledAppsLoaded = repository.observeInstalledApps()
-        .map { true }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false,
-        )
+    val actions = actionChannel.receiveAsFlow()
+    val feedback = feedbackChannel.receiveAsFlow()
 
     val uiState: StateFlow<HomeUiState> = combine(
-        combine(
-            query,
-            hintMessage,
-            installedApps,
-            areInstalledAppsLoaded,
-        ) { q, h, apps, isLoaded ->
-            HomeInputs(
-                query = q,
-                hintMessage = h,
-                apps = apps,
-                isLoaded = isLoaded,
-            )
-        },
-        repository.observePinnedHomeApps(),
-        repository.observeBottomShortcuts(),
-    ) { inputs, homeApps, shortcuts ->
-        val suggestions = if (inputs.query.isNotBlank()) {
-            inputs.apps.filter { app ->
-                matchesSearchQuery(app.label, inputs.query)
-            }.sortedBy { app ->
-                if (startsWithSearchQuery(app.label, inputs.query)) 0 else 1
-            }.take(5)
-        } else {
-            emptyList()
-        }
+        query,
+        hintMessage,
+        repository.state,
+    ) { currentQuery, currentHint, repositoryState ->
+        val launcher = (repositoryState as? LauncherRepositoryState.Ready)?.launcher
+            ?: return@combine HomeUiState(query = currentQuery, isLoading = true)
         HomeUiState(
-            query = inputs.query,
-            homeApps = homeApps,
-            shortcuts = shortcuts.sortedBy { it.slot.ordinal },
-            hintMessage = inputs.hintMessage,
-            searchSuggestions = suggestions,
-            isLoading = !inputs.isLoaded,
+            query = currentQuery,
+            homeApps = launcher.pinnedHomeApps,
+            shortcuts = launcher.bottomShortcuts.sortedBy { it.slot.ordinal },
+            hintMessage = currentHint,
+            searchSuggestions = installedAppSearch.suggestions(currentQuery, launcher.installedApps),
+            isLoading = false,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -95,55 +63,37 @@ class HomeViewModel(
         initialValue = HomeUiState(isLoading = true),
     )
 
-    init {
-        viewModelScope.launch {
-            repository.ensureDefaults()
-        }
-    }
-
     fun onQueryChange(value: String) {
         query.value = value
         hintMessage.value = null
     }
 
-    fun onPrimarySearch() {
-        dispatch(searchResolver.resolvePrimary(query.value, installedApps.value))
-    }
-
-    fun onBrowserSearch() {
-        dispatch(searchResolver.resolveBrowser(query.value))
-    }
-
-    fun onPlayStoreSearch() {
-        dispatch(searchResolver.resolvePlayStore(query.value))
-    }
-
-    fun onMapsSearch() {
-        dispatch(searchResolver.resolveMaps(query.value))
+    fun onSearch(target: SearchTarget) {
+        val action = installedAppSearch.resolve(target, query.value, currentInstalledApps())
+        if (action == null) {
+            viewModelScope.launch { feedbackChannel.send("Type a query first.") }
+        } else {
+            sendAction(action)
+        }
     }
 
     fun onAppHint() {
-        when (val resolution = searchResolver.resolveHint(query.value, installedApps.value)) {
-            is SearchResolution.AppHint -> {
-                hintMessage.value = "Try ${resolution.app.label}"
-                sendCommand(LauncherCommand.ShowMessage("Best app hint: ${resolution.app.label}"))
-            }
-
-            is SearchResolution.NoMatch -> {
-                hintMessage.value = "No local app hint"
-                sendCommand(LauncherCommand.ShowMessage("No local app hint for that query."))
-            }
-
-            else -> Unit
+        val app = installedAppSearch.hint(query.value, currentInstalledApps())
+        if (app != null) {
+            hintMessage.value = "Try ${app.label}"
+            viewModelScope.launch { feedbackChannel.send("Best app hint: ${app.label}") }
+        } else {
+            hintMessage.value = "No local app hint"
+            viewModelScope.launch { feedbackChannel.send("No local app hint for that query.") }
         }
     }
 
     fun onAppClicked(app: InstalledApp) {
-        sendCommand(LauncherCommand.LaunchInstalledApp(app))
+        sendAction(LauncherAction.LaunchInstalledApp(app))
     }
 
     fun onShortcutClicked(shortcut: ResolvedShortcut) {
-        sendCommand(LauncherCommand.OpenShortcut(shortcut))
+        sendAction(LauncherAction.OpenShortcut(shortcut))
     }
 
     fun removeHomeApp(app: InstalledApp) {
@@ -165,60 +115,26 @@ class HomeViewModel(
     }
 
     fun uninstallApp(app: InstalledApp) {
+        sendAction(LauncherAction.UninstallApp(app))
+    }
+
+    private fun sendAction(action: LauncherAction) {
         viewModelScope.launch {
-            commandChannel.send(LauncherCommand.UninstallApp(app))
+            actionChannel.send(action)
         }
     }
 
-    private fun dispatch(resolution: SearchResolution) {
-        when (resolution) {
-            is SearchResolution.LaunchInstalledApp -> {
-                sendCommand(LauncherCommand.LaunchInstalledApp(resolution.app))
-            }
-
-            is SearchResolution.PlayStoreSearch -> {
-                sendCommand(LauncherCommand.OpenPlayStoreSearch(resolution.query))
-            }
-
-            is SearchResolution.MapsSearch -> {
-                sendCommand(LauncherCommand.OpenMapsSearch(resolution.query))
-            }
-
-            is SearchResolution.WebSearch -> {
-                sendCommand(LauncherCommand.OpenWebSearch(resolution.query))
-            }
-
-            is SearchResolution.NoMatch -> {
-                sendCommand(LauncherCommand.ShowMessage("Type a query first."))
-            }
-
-            is SearchResolution.AppHint -> {
-                hintMessage.value = "Try ${resolution.app.label}"
-            }
-        }
-    }
-
-    private fun sendCommand(command: LauncherCommand) {
-        viewModelScope.launch {
-            commandChannel.send(command)
-        }
-    }
+    private fun currentInstalledApps(): List<InstalledApp> =
+        (repository.state.value as? LauncherRepositoryState.Ready)?.launcher?.installedApps.orEmpty()
 
     companion object {
         fun provideFactory(
             repository: LauncherRepository,
-            searchResolver: SearchResolver,
+            installedAppSearch: InstalledAppSearch,
         ) = viewModelFactory {
             initializer {
-                HomeViewModel(repository, searchResolver)
+                HomeViewModel(repository, installedAppSearch)
             }
         }
     }
 }
-
-private data class HomeInputs(
-    val query: String,
-    val hintMessage: String?,
-    val apps: List<InstalledApp>,
-    val isLoaded: Boolean,
-)
