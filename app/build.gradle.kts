@@ -1,8 +1,23 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+detekt {
+    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+    parallel = true
+    ignoreFailures = false
+    failOnSeverity = dev.detekt.gradle.extensions.FailOnSeverity.Warning
+    basePath.set(rootProject.projectDir)
+}
+
+tasks.named("check").configure {
+    // These tasks use type resolution, which the coroutine rules require.
+    dependsOn("detektMain", "detektTest")
 }
 
 android {
