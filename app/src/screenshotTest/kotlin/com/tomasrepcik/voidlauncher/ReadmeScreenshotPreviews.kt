@@ -202,6 +202,7 @@ fun readmeCustomize() {
             onBack = {},
             onEditShortcut = {},
             onOpenSchedules = {},
+            onShowNavigationTutorial = {},
         )
     }
 }

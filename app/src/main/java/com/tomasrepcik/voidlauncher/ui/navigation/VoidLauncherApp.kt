@@ -11,6 +11,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,7 +28,9 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.tomasrepcik.voidlauncher.LauncherApplication
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.data.repository.RepositoryMutationOutcome
+import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationScreen
@@ -39,6 +44,7 @@ import com.tomasrepcik.voidlauncher.ui.drawer.DrawerViewModel
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeViewModel
+import com.tomasrepcik.voidlauncher.ui.onboarding.NavigationTutorial
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorScreen
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorViewModel
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEffect
@@ -76,6 +82,14 @@ fun VoidLauncherApp() {
     val snackbarHostState = remember { SnackbarHostState() }
     val mutationScope = rememberCoroutineScope()
     val errorMessageMapper = remember { AppErrorMessageMapper() }
+    var tutorialReplayRequested by rememberSaveable { mutableStateOf(false) }
+    var tutorialDismissedThisSession by rememberSaveable { mutableStateOf(false) }
+    val hasSeenNavigationTutorial = (repositoryState as? LauncherRepositoryState.Ready)
+        ?.launcher
+        ?.preferences
+        ?.hasSeenNavigationTutorial
+    val showNavigationTutorial = tutorialReplayRequested ||
+        (hasSeenNavigationTutorial == false && !tutorialDismissedThisSession)
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -195,6 +209,7 @@ fun VoidLauncherApp() {
                         onBack = backStack::popIfNotRoot,
                         onEditShortcut = { slot -> backStack.pushSingleTop(ShortcutPickerRoute(slot)) },
                         onOpenSchedules = { backStack.pushSingleTop(ScheduleListRoute) },
+                        onShowNavigationTutorial = { tutorialReplayRequested = true },
                     )
                 }
 
@@ -299,6 +314,27 @@ fun VoidLauncherApp() {
         LauncherRepositoryBlocker(
             state = repositoryState,
             onRetry = appContainer.launcherRepository::retryInitialization,
+        )
+    }
+
+    if (showNavigationTutorial) {
+        NavigationTutorial(
+            onFinish = {
+                tutorialReplayRequested = false
+                tutorialDismissedThisSession = true
+                if (hasSeenNavigationTutorial == false) {
+                    mutationScope.launchMutation(
+                        context = context,
+                        snackbarHostState = snackbarHostState,
+                        messageMapper = errorMessageMapper,
+                        mutation = {
+                            appContainer.launcherRepository.mutatePreferences(
+                                LauncherPreferencesMutation.MarkNavigationTutorialSeen
+                            )
+                        },
+                    )
+                }
+            },
         )
     }
 }

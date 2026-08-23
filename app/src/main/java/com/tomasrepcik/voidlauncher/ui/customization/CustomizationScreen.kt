@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +30,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -50,7 +55,10 @@ fun CustomizationScreen(
     onBack: () -> Unit,
     onEditShortcut: (ShortcutSlot) -> Unit,
     onOpenSchedules: () -> Unit,
+    onShowNavigationTutorial: () -> Unit,
 ) {
+    var showOpenSourceLicenses by rememberSaveable { mutableStateOf(false) }
+
     Surface(modifier = Modifier.fillMaxSize()) {
         SwipeNavigationContainer(
             modifier = Modifier.fillMaxSize(),
@@ -132,9 +140,70 @@ fun CustomizationScreen(
                             }
                         }
                     }
+
+                    item {
+                        Text(
+                            text = stringResource(R.string.help),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+
+                    item {
+                        ElevatedCard(
+                            onClick = onShowNavigationTutorial,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("show_navigation_tutorial_button"),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.TouchApp,
+                                    contentDescription = null,
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.show_navigation_tutorial),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.show_navigation_tutorial_summary
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(12.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        AboutSettings(
+                            onOpenLicenses = { showOpenSourceLicenses = true },
+                        )
+                    }
                 }
             }
         }
+    }
+
+    if (showOpenSourceLicenses) {
+        OpenSourceLicensesDialog(
+            onDismiss = { showOpenSourceLicenses = false },
+        )
     }
 }
 

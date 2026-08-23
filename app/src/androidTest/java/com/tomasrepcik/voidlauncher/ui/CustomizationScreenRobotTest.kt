@@ -1,10 +1,15 @@
 package com.tomasrepcik.voidlauncher.ui
 
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationScreen
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationUiState
 import com.tomasrepcik.voidlauncher.ui.theme.VoidLauncherTheme
@@ -14,12 +19,13 @@ import org.junit.Test
 
 class CustomizationScreenRobotTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun settingsExposeSchedulingAsAButtonAndKeepBackNavigationClickable() {
         var backRequests = 0
         var scheduleRequests = 0
+        var tutorialRequests = 0
         composeRule.setContent {
             VoidLauncherTheme {
                 CustomizationScreen(
@@ -27,6 +33,7 @@ class CustomizationScreenRobotTest {
                     onBack = { backRequests += 1 },
                     onEditShortcut = {},
                     onOpenSchedules = { scheduleRequests += 1 },
+                    onShowNavigationTutorial = { tutorialRequests += 1 },
                 )
             }
         }
@@ -38,8 +45,29 @@ class CustomizationScreenRobotTest {
             .assertIsDisplayed()
             .assertHasClickAction()
             .performClick()
+        composeRule.onNodeWithTag("show_navigation_tutorial_button")
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+        composeRule.onNodeWithTag("app_version")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("1.0 (1)")
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("open_source_licenses_button")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performClick()
+        composeRule.onNodeWithTag("open_source_licenses_dialog").assertIsDisplayed()
+        composeRule.onNodeWithText("VoidLauncher").assertIsDisplayed()
+        composeRule.onNodeWithText("MIT License").assertIsDisplayed()
+        composeRule.onNodeWithText("AndroidX").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Apache License 2.0").assertCountEquals(3)
+        composeRule.onNodeWithText("Close").performClick()
 
         assertEquals(1, backRequests)
         assertEquals(1, scheduleRequests)
+        assertEquals(1, tutorialRequests)
     }
 }
