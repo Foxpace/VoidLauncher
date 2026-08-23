@@ -1,5 +1,6 @@
 package com.tomasrepcik.voidlauncher.data.local
 
+import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -7,6 +8,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import kotlinx.coroutines.flow.Flow
 
@@ -36,6 +38,8 @@ data class LauncherPreferencesEntity(
     val id: Int = 0,
     val homeAppCount: Int,
     val hasSeenNavigationTutorial: Boolean = false,
+    val homeBackgroundUri: String? = null,
+    val useBackgroundColors: Boolean = false,
 )
 
 @Entity(tableName = "installed_apps", primaryKeys = ["packageName", "activityName"])
@@ -135,7 +139,7 @@ interface AppScheduleDao {
         InstalledAppEntity::class,
         AppScheduleEntity::class,
     ],
-    version = 6,
+    version = LAUNCHER_DATABASE_VERSION,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -145,3 +149,15 @@ abstract class LauncherDatabase : RoomDatabase() {
     abstract fun installedAppDao(): InstalledAppDao
     abstract fun appScheduleDao(): AppScheduleDao
 }
+
+internal const val LAUNCHER_DATABASE_VERSION = 7
+internal const val LAUNCHER_DATABASE_NAME = "void-launcher.db"
+
+internal fun openLauncherDatabase(context: Context): LauncherDatabase =
+    Room.databaseBuilder(
+        context.applicationContext,
+        LauncherDatabase::class.java,
+        LAUNCHER_DATABASE_NAME,
+    )
+        .fallbackToDestructiveMigration(dropAllTables = true)
+        .build()

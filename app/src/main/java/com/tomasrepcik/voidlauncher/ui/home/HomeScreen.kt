@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -57,7 +56,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerId
@@ -78,6 +76,8 @@ import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchOptions
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationActions
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationConfig
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceState
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeBackgroundContainer
 import kotlin.math.abs
 
 private val BottomSwipeActivationZone = 96.dp
@@ -86,6 +86,7 @@ private val BottomSwipeFocusThreshold = 24.dp
 @Composable
 fun HomeScreen(
     state: HomeUiState,
+    appearance: HomeAppearanceState,
     actions: HomeActions,
 ) {
     val focusManager = LocalFocusManager.current
@@ -98,49 +99,43 @@ fun HomeScreen(
         controller.retainApps(state.homeApps)
     }
 
-    SwipeNavigationContainer(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
-                    )
-                )
+    HomeBackgroundContainer(state = appearance) {
+        SwipeNavigationContainer(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("home_root"),
+            config = SwipeNavigationConfig(
+                bottomActivationZone = BottomSwipeActivationZone,
+                bottomThreshold = BottomSwipeFocusThreshold,
+                bottomInset = bottomSwipeInset,
+            ),
+            actions = SwipeNavigationActions(
+                onOpen = actions.onOpenDrawer,
+                onBottomSwipeUp = {
+                    searchFocusRequester.requestFocus()
+                    keyboardController?.show()
+                },
+            ),
+        ) {
+            HomeContent(
+                state = state,
+                actions = actions,
+                controller = controller,
+                searchFocusRequester = searchFocusRequester,
+                onDismiss = focusManager::clearFocus,
             )
-            .testTag("home_root"),
-        config = SwipeNavigationConfig(
-            bottomActivationZone = BottomSwipeActivationZone,
-            bottomThreshold = BottomSwipeFocusThreshold,
-            bottomInset = bottomSwipeInset,
-        ),
-        actions = SwipeNavigationActions(
-            onOpen = actions.onOpenDrawer,
-            onBottomSwipeUp = {
-                searchFocusRequester.requestFocus()
-                keyboardController?.show()
-            },
-        ),
-    ) {
-        HomeContent(
-            state = state,
-            actions = actions,
-            controller = controller,
-            searchFocusRequester = searchFocusRequester,
-            onDismiss = focusManager::clearFocus,
-        )
-    }
+        }
 
-    controller.renamingApp?.let { app ->
-        RenameAppDialog(
-            app = app,
-            onDismiss = controller::dismissRename,
-            onSave = { newLabel ->
-                actions.onRenameHomeApp(app, newLabel)
-                controller.finishRename()
-            },
-        )
+        controller.renamingApp?.let { app ->
+            RenameAppDialog(
+                app = app,
+                onDismiss = controller::dismissRename,
+                onSave = { newLabel ->
+                    actions.onRenameHomeApp(app, newLabel)
+                    controller.finishRename()
+                },
+            )
+        }
     }
 }
 

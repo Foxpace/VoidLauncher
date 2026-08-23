@@ -12,6 +12,8 @@ import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
+import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
+import com.tomasrepcik.voidlauncher.ui.sendOutcome
 import java.time.LocalDateTime
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 data class HomeUiState(
     val query: String = "",
@@ -47,11 +50,9 @@ class HomeViewModel(
 
     private val query = MutableStateFlow("")
     private val hintMessage = MutableStateFlow<String?>(null)
-    private val actionChannel = Channel<LauncherAction>(capacity = Channel.BUFFERED)
-    private val feedbackChannel = Channel<String>(capacity = Channel.BUFFERED)
+    private val effectChannel = Channel<LauncherUiEffect>(capacity = Channel.BUFFERED)
 
-    val actions = actionChannel.receiveAsFlow()
-    val feedback = feedbackChannel.receiveAsFlow()
+    internal val effects = effectChannel.receiveAsFlow()
 
     val uiState: StateFlow<HomeUiState> = combine(
         query,
@@ -90,9 +91,9 @@ class HomeViewModel(
     fun onSearch(target: SearchTarget) {
         val action = installedAppSearch.resolve(target, query.value, currentInstalledApps())
         if (action == null) {
-            viewModelScope.launch { feedbackChannel.send("Type a query first.") }
+            effectChannel.trySend(LauncherUiEffect.Feedback("Type a query first."))
         } else {
-            sendAction(action)
+            effectChannel.trySend(LauncherUiEffect.Action(action))
         }
     }
 
@@ -100,37 +101,39 @@ class HomeViewModel(
         val app = installedAppSearch.hint(query.value, currentInstalledApps())
         if (app != null) {
             hintMessage.value = "Try ${app.label}"
-            viewModelScope.launch { feedbackChannel.send("Best app hint: ${app.label}") }
+            effectChannel.trySend(LauncherUiEffect.Feedback("Best app hint: ${app.label}"))
         } else {
             hintMessage.value = "No local app hint"
-            viewModelScope.launch { feedbackChannel.send("No local app hint for that query.") }
+            effectChannel.trySend(LauncherUiEffect.Feedback("No local app hint for that query."))
         }
     }
 
     fun onAppClicked(app: InstalledApp) {
-        sendAction(LauncherAction.LaunchInstalledApp(app))
+        effectChannel.trySend(LauncherUiEffect.Action(LauncherAction.LaunchInstalledApp(app)))
     }
 
     fun onShortcutClicked(shortcut: ResolvedShortcut) {
-        sendAction(LauncherAction.OpenShortcut(shortcut))
+        effectChannel.trySend(LauncherUiEffect.Action(LauncherAction.OpenShortcut(shortcut)))
     }
 
-    suspend fun removeHomeApp(app: InstalledApp) = repository.removeHomeApp(app.key)
+    fun removeHomeApp(app: InstalledApp) {
+        viewModelScope.launch { effectChannel.sendOutcome(repository.removeHomeApp(app.key)) }
+    }
 
-    suspend fun renameHomeApp(app: InstalledApp, newLabel: String?) =
-        repository.renameHomeApp(app.key, newLabel)
+    fun renameHomeApp(app: InstalledApp, newLabel: String?) {
+        viewModelScope.launch {
+            effectChannel.sendOutcome(repository.renameHomeApp(app.key, newLabel))
+        }
+    }
 
-    suspend fun reorderHomeApps(fromIndex: Int, toIndex: Int) =
-        repository.reorderHomeApps(fromIndex, toIndex)
+    fun reorderHomeApps(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            effectChannel.sendOutcome(repository.reorderHomeApps(fromIndex, toIndex))
+        }
+    }
 
     fun uninstallApp(app: InstalledApp) {
-        sendAction(LauncherAction.UninstallApp(app))
-    }
-
-    private fun sendAction(action: LauncherAction) {
-        viewModelScope.launch {
-            actionChannel.send(action)
-        }
+        effectChannel.trySend(LauncherUiEffect.Action(LauncherAction.UninstallApp(app)))
     }
 
     private fun currentInstalledApps(): List<InstalledApp> =
@@ -157,6 +160,6 @@ private fun minuteTicks(): Flow<LocalDateTime> = flow {
         val now = LocalDateTime.now()
         emit(now)
         val millisUntilNextMinute = (60 - now.second) * 1_000L - now.nano / 1_000_000L
-        delay(millisUntilNextMinute.coerceAtLeast(1L))
+        delay(millisUntilNextMinute.coerceAtLeast(1L).milliseconds)
     }
 }

@@ -22,7 +22,8 @@ class NavigationTutorialTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun tutorialExplainsNavigationShortcutsAndScheduleLocationBeforeFinishing() {
+    fun givenNavigationTutorial_whenPagesAreAdvanced_thenNavigationShortcutsSchedulesAndFinishAreExplained() {
+        // GIVEN
         var finishRequests = 0
         composeRule.setContent {
             VoidLauncherTheme {
@@ -30,6 +31,7 @@ class NavigationTutorialTest {
             }
         }
 
+        // THEN
         composeRule.onNodeWithTag("navigation_tutorial_title")
             .assertTextEquals("Move around with swipes")
         composeRule.onNodeWithText("On Home, swipe left to open all apps.")
@@ -39,24 +41,34 @@ class NavigationTutorialTest {
         composeRule.onNodeWithText("Swipe up from the bottom edge to focus Search.")
             .assertIsDisplayed()
 
+        // WHEN
         composeRule.onNodeWithTag("navigation_tutorial_next").performClick()
+
+        // THEN
         composeRule.onNodeWithTag("navigation_tutorial_title")
             .assertTextEquals("Shortcuts stay at the bottom")
         composeRule.onNodeWithText("Tap either bottom shortcut to open it.")
             .assertIsDisplayed()
 
+        // WHEN
         composeRule.onNodeWithTag("navigation_tutorial_next").performClick()
+
+        // THEN
         composeRule.onNodeWithTag("navigation_tutorial_title")
             .assertTextEquals("Schedules are in Settings")
         composeRule.onNodeWithText("Swipe left → Settings → App schedules")
             .assertIsDisplayed()
 
+        // WHEN
         composeRule.onNodeWithTag("navigation_tutorial_next").performClick()
+
+        // THEN
         composeRule.runOnIdle { assertEquals(1, finishRequests) }
     }
 
     @Test
-    fun changingPageKeepsOneDialogWhileOldAndNewContentAnimateTogether() {
+    fun givenNavigationTutorial_whenPageChangeAnimates_thenOneDialogContainsOldAndNewContent() {
+        // GIVEN
         composeRule.setContent {
             VoidLauncherTheme {
                 NavigationTutorial(onFinish = {})
@@ -65,14 +77,19 @@ class NavigationTutorialTest {
         composeRule.waitForIdle()
         composeRule.mainClock.autoAdvance = false
 
+        // WHEN
         composeRule.onNodeWithTag("navigation_tutorial_next").performClick()
         composeRule.mainClock.advanceTimeBy(ANIMATION_MIDPOINT_MILLIS)
 
+        // THEN
         composeRule.onAllNodesWithTag("navigation_tutorial").assertCountEquals(1)
         composeRule.onAllNodesWithTag("navigation_tutorial_title").assertCountEquals(2)
 
+        // WHEN
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
+
+        // THEN
         composeRule.onAllNodesWithTag("navigation_tutorial_title").assertCountEquals(1)
         composeRule.onNodeWithTag("navigation_tutorial_title")
             .assertTextEquals("Shortcuts stay at the bottom")

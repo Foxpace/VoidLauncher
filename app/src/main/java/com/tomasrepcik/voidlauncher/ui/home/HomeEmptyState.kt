@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,24 +32,19 @@ internal fun BoxScope.HomeEmptyState(
     onOpenDrawer: () -> Unit,
     onOpenSchedules: () -> Unit,
 ) {
-    ElevatedCard(
+    Column(
         modifier = Modifier
             .align(Alignment.Center)
             .fillMaxWidth()
             .padding(top = 88.dp, bottom = 80.dp)
+            .padding(horizontal = 24.dp, vertical = 28.dp)
             .testTag("home_empty_state"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            EmptyStateIcon()
-            EmptyStateMessage(isScheduleActive)
-            EmptyStateActions(onOpenDrawer, onOpenSchedules)
-        }
+        EmptyStateIcon()
+        EmptyStateMessage(isScheduleActive)
+        EmptyStateActions(onOpenDrawer, onOpenSchedules)
     }
 }
 

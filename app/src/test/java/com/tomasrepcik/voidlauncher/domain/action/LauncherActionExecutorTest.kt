@@ -18,18 +18,23 @@ class LauncherActionExecutorTest {
 
     @Test
     fun givenInstalledApp_whenLaunched_thenActionCompletes() = runTest {
+        // WHEN
         val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()), platform)
 
+        // THEN
         assertThat(outcome).isEqualTo(LauncherActionOutcome.Completed)
         assertThat(platform.calls).containsExactly("launch:dev.example")
     }
 
     @Test
     fun givenMissingApp_whenLaunched_thenAppUnavailableIsReturned() = runTest {
+        // GIVEN
         platform.launchInstalledApp = false
 
+        // WHEN
         val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()), platform)
 
+        // THEN
         assertThat(outcome).isInstanceOf(LauncherActionOutcome.Failed::class.java)
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.APP_UNAVAILABLE)
@@ -37,10 +42,13 @@ class LauncherActionExecutorTest {
 
     @Test
     fun givenUnavailableSearchApp_whenWebSearchRuns_thenBrowserFallbackCompletes() = runTest {
+        // GIVEN
         platform.openWebSearch = false
 
+        // WHEN
         val outcome = executor.execute(LauncherAction.OpenWebSearch("weather"), platform)
 
+        // THEN
         assertThat(outcome).isEqualTo(
             LauncherActionOutcome.Recovered(ErrorRecovery.BROWSER_FALLBACK),
         )
@@ -49,6 +57,7 @@ class LauncherActionExecutorTest {
 
     @Test
     fun givenUnavailableAppShortcut_whenOpened_thenAppUnavailableIsReturnedWithoutLaunch() = runTest {
+        // GIVEN
         val shortcut = ResolvedShortcut(
             slot = ShortcutSlot.LEFT,
             label = "Missing",
@@ -56,8 +65,10 @@ class LauncherActionExecutorTest {
             isAvailable = false,
         )
 
+        // WHEN
         val outcome = executor.execute(LauncherAction.OpenShortcut(shortcut), platform)
 
+        // THEN
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.APP_UNAVAILABLE)
         assertThat(platform.calls).isEmpty()
@@ -65,10 +76,13 @@ class LauncherActionExecutorTest {
 
     @Test
     fun givenSystemApp_whenUninstallRuns_thenAppInfoRecoveryCompletes() = runTest {
+        // GIVEN
         platform.applicationFlags = ApplicationInfo.FLAG_SYSTEM
 
+        // WHEN
         val outcome = executor.execute(LauncherAction.UninstallApp(app()), platform)
 
+        // THEN
         assertThat(outcome).isEqualTo(
             LauncherActionOutcome.Recovered(
                 ErrorRecovery.SYSTEM_APP_INFO,
@@ -79,11 +93,14 @@ class LauncherActionExecutorTest {
 
     @Test
     fun givenUnavailableUninstallerAndAppInfo_whenUninstallRuns_thenRecoveryFailureIsReturned() = runTest {
+        // GIVEN
         platform.openUninstaller = false
         platform.openAppInfo = false
 
+        // WHEN
         val outcome = executor.execute(LauncherAction.UninstallApp(app()), platform)
 
+        // THEN
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.DESTINATION_UNAVAILABLE)
         assertThat(failure.error.recovery)
@@ -97,11 +114,14 @@ class LauncherActionExecutorTest {
 
     @Test
     fun givenUnexpectedDefect_whenActionRuns_thenAppErrorContainsDefect() = runTest {
+        // GIVEN
         val defect = IllegalStateException("defect")
         platform.unexpectedFailure = defect
 
+        // WHEN
         val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()), platform)
 
+        // THEN
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.UNEXPECTED)
         assertThat(failure.error.cause).isSameInstanceAs(defect)
@@ -170,7 +190,7 @@ private class RecordingLauncherActionPlatform : LauncherActionPlatform {
         return openMapsWebsite
     }
 
-    override fun applicationFlags(packageName: String): Int? {
+    override fun applicationFlags(packageName: String): Int {
         calls += "flags:$packageName"
         return applicationFlags
     }

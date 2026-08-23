@@ -8,11 +8,11 @@ import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
-import com.tomasrepcik.voidlauncher.data.repository.RepositoryMutationOutcome
-import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
+import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
+import com.tomasrepcik.voidlauncher.ui.sendOutcome
 import java.time.DayOfWeek
 import java.util.UUID
 import kotlinx.coroutines.channels.Channel
@@ -38,16 +38,11 @@ sealed interface ScheduleListIntent {
     data class SetEnabled(val schedule: AppSchedule, val enabled: Boolean) : ScheduleListIntent
 }
 
-sealed interface ScheduleEffect {
-    data object Saved : ScheduleEffect
-    data class Failed(val error: AppError) : ScheduleEffect
-}
-
 class ScheduleListViewModel(
     private val repository: LauncherRepository,
 ) : ViewModel() {
-    private val effectChannel = Channel<ScheduleEffect>(Channel.BUFFERED)
-    val effects = effectChannel.receiveAsFlow()
+    private val effectChannel = Channel<LauncherUiEffect>(Channel.BUFFERED)
+    internal val effects = effectChannel.receiveAsFlow()
 
     val uiState: StateFlow<ScheduleListUiState> = repository.state.map { state ->
         val launcher = (state as? LauncherRepositoryState.Ready)?.launcher
@@ -64,17 +59,13 @@ class ScheduleListViewModel(
     fun onIntent(intent: ScheduleListIntent) {
         when (intent) {
             is ScheduleListIntent.Delete -> viewModelScope.launch {
-                repository.mutateSchedule(ScheduleMutation.Delete(intent.id)).sendFailure()
+                effectChannel.sendOutcome(repository.mutateSchedule(ScheduleMutation.Delete(intent.id)))
             }
             is ScheduleListIntent.SetEnabled -> viewModelScope.launch {
                 val updated = intent.schedule.copy(enabled = intent.enabled)
-                repository.mutateSchedule(ScheduleMutation.Save(updated)).sendFailure()
+                effectChannel.sendOutcome(repository.mutateSchedule(ScheduleMutation.Save(updated)))
             }
         }
-    }
-
-    private suspend fun RepositoryMutationOutcome.sendFailure() {
-        if (this is RepositoryMutationOutcome.Failed) effectChannel.send(ScheduleEffect.Failed(error))
     }
 
     companion object {
@@ -124,8 +115,8 @@ class ScheduleEditorViewModel(
 ) : ViewModel() {
     private val draft = MutableStateFlow<ScheduleEditorUiState?>(null)
     private val saving = MutableStateFlow(false)
-    private val effectChannel = Channel<ScheduleEffect>(Channel.BUFFERED)
-    val effects = effectChannel.receiveAsFlow()
+    private val effectChannel = Channel<LauncherUiEffect>(Channel.BUFFERED)
+    internal val effects = effectChannel.receiveAsFlow()
 
     val uiState: StateFlow<ScheduleEditorUiState> = combine(
         draft,
@@ -202,10 +193,10 @@ class ScheduleEditorViewModel(
                 appKeys = current.selectedAppKeys,
                 enabled = current.enabled,
             )
-            when (val outcome = repository.mutateSchedule(ScheduleMutation.Save(schedule))) {
-                RepositoryMutationOutcome.Completed -> effectChannel.send(ScheduleEffect.Saved)
-                is RepositoryMutationOutcome.Failed -> effectChannel.send(ScheduleEffect.Failed(outcome.error))
-            }
+            effectChannel.sendOutcome(
+                repository.mutateSchedule(ScheduleMutation.Save(schedule)),
+                sendCompletion = true,
+            )
             saving.value = false
         }
     }

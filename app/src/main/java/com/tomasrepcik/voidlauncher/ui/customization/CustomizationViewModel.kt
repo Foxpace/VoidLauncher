@@ -11,12 +11,17 @@ import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
+import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
+import com.tomasrepcik.voidlauncher.ui.sendOutcome
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class CustomizationUiState(
     val shortcuts: List<ResolvedShortcut> = emptyList(),
@@ -25,7 +30,6 @@ data class CustomizationUiState(
 class CustomizationViewModel(
     repository: LauncherRepository,
 ) : ViewModel() {
-
     val uiState: StateFlow<CustomizationUiState> =
         repository.state.map { repositoryState ->
             val shortcuts = (repositoryState as? LauncherRepositoryState.Ready)
@@ -61,6 +65,8 @@ class ShortcutPickerViewModel(
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
+    private val effectChannel = Channel<LauncherUiEffect>(Channel.BUFFERED)
+    internal val effects = effectChannel.receiveAsFlow()
 
     val uiState: StateFlow<ShortcutPickerUiState> = combine(
         repository.state,
@@ -85,13 +91,20 @@ class ShortcutPickerViewModel(
         query.value = value
     }
 
-    suspend fun onAppSelected(app: InstalledApp) =
-        repository.saveShortcut(slot, ShortcutSelection.AppShortcut(app.key))
+    fun onAppSelected(app: InstalledApp) = save(ShortcutSelection.AppShortcut(app.key))
 
-    suspend fun onContactsSelected() =
-        repository.saveShortcut(slot, ShortcutSelection.SystemContacts)
+    fun onContactsSelected() = save(ShortcutSelection.SystemContacts)
 
-    suspend fun onCameraSelected() = repository.saveShortcut(slot, ShortcutSelection.SystemCamera)
+    fun onCameraSelected() = save(ShortcutSelection.SystemCamera)
+
+    private fun save(selection: ShortcutSelection) {
+        viewModelScope.launch {
+            effectChannel.sendOutcome(
+                repository.saveShortcut(slot, selection),
+                sendCompletion = true,
+            )
+        }
+    }
 
     companion object {
         fun provideFactory(

@@ -16,6 +16,15 @@
     <string name="filter_apps">Filter apps</string>
     <string name="loading_apps">Loading apps</string>
     <string name="customize_launcher">Customize launcher</string>
+    <string name="home_appearance">Home appearance</string>
+    <string name="home_background">Background image</string>
+    <string name="home_background_summary">Choose an image for Home. Other screens keep their current background.</string>
+    <string name="choose_background">Choose image</string>
+    <string name="change_background">Change image</string>
+    <string name="restore_default_background">Restore default</string>
+    <string name="use_background_colors">Use image colors</string>
+    <string name="use_background_colors_summary">Tint Home controls and text from the selected image.</string>
+    <string name="use_background_colors_unavailable">Choose an image to turn this on.</string>
     <string name="visible_home_apps">Visible home apps</string>
     <string name="home_apps_section">Home apps</string>
     <string name="manage_home_apps">Manage apps</string>

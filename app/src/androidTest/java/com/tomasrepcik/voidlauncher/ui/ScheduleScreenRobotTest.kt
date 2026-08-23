@@ -31,7 +31,8 @@ class ScheduleScreenRobotTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun emptyListExplainsFallbackAndOffersOneAddAction() {
+    fun givenEmptyScheduleList_whenAddActionIsUsed_thenFallbackIsExplainedAndAddIsRequested() {
+        // GIVEN
         var addRequests = 0
         composeRule.setContent {
             VoidLauncherTheme {
@@ -45,6 +46,7 @@ class ScheduleScreenRobotTest {
             }
         }
 
+        // THEN
         composeRule.onNodeWithTag("schedule_empty_state").assertIsDisplayed()
         composeRule.onNodeWithText("No app schedules yet").assertIsDisplayed()
         composeRule.onNodeWithText(
@@ -52,12 +54,17 @@ class ScheduleScreenRobotTest {
                 "Your regular Home apps stay visible until a schedule is active.",
         )
             .assertIsDisplayed()
+
+        // WHEN
         composeRule.onNodeWithTag("schedule_add_button").performClick()
+
+        // THEN
         assertEquals(1, addRequests)
     }
 
     @Test
-    fun alarmCardCanBeDisabledWithoutOpeningTheEditor() {
+    fun givenEnabledScheduleCard_whenToggleIsClicked_thenDisableIntentIsSentWithoutOpeningEditor() {
+        // GIVEN
         val schedule = schedule()
         var receivedIntent: ScheduleListIntent? = null
         composeRule.setContent {
@@ -72,9 +79,13 @@ class ScheduleScreenRobotTest {
             }
         }
 
+        // THEN
         composeRule.onNodeWithText("Work").assertIsDisplayed()
+
+        // WHEN
         composeRule.onNodeWithTag("schedule_enabled_work").performClick()
 
+        // THEN
         when (val intent = receivedIntent) {
             is ScheduleListIntent.SetEnabled -> {
                 assertEquals(schedule, intent.schedule)
@@ -85,7 +96,8 @@ class ScheduleScreenRobotTest {
     }
 
     @Test
-    fun editorShowsSelectedAppsAndOpensPickerOnASeparateScreen() {
+    fun givenScheduleEditor_whenAppPickerAndPresetAreUsed_thenSelectedAppsAndIntentsAreShown() {
+        // GIVEN
         val mail = app("Mail")
         val calendar = app("Calendar")
         var receivedIntent: ScheduleEditorIntent? = null
@@ -103,6 +115,7 @@ class ScheduleScreenRobotTest {
             }
         }
 
+        // THEN
         composeRule.onNodeWithText("Weekdays").assertIsDisplayed()
         DayOfWeek.entries.forEach { day ->
             composeRule.onNodeWithTag("schedule_day_${day.name}").assertIsDisplayed()
@@ -118,17 +131,24 @@ class ScheduleScreenRobotTest {
             composeRule.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
         }
         composeRule.onNodeWithTag("schedule_save_button").assertIsDisplayed()
+
+        // WHEN
         composeRule.onNodeWithTag("schedule_choose_apps_button").performScrollTo().performClick()
+
+        // THEN
         assertEquals(ScheduleEditorIntent.OpenAppPicker, receivedIntent)
 
+        // WHEN
         composeRule.onNodeWithTag("schedule_preset_Every day").performClick()
 
+        // THEN
         when (val intent = receivedIntent) {
             is ScheduleEditorIntent.DaysChanged ->
                 assertEquals(DayOfWeek.entries.toSet(), intent.days)
             else -> fail("Expected a DaysChanged intent, but received $intent")
         }
 
+        // GIVEN
         composeRule.setContent {
             VoidLauncherTheme {
                 ScheduleEditorScreen(
@@ -144,9 +164,14 @@ class ScheduleScreenRobotTest {
             }
         }
 
+        // THEN
         composeRule.onNodeWithText("Choose apps").assertIsDisplayed()
         composeRule.onNodeWithTag("schedule_app_search").assertIsDisplayed()
+
+        // WHEN
         composeRule.onNodeWithTag("schedule_app_picker_done").performClick()
+
+        // THEN
         assertEquals(ScheduleEditorIntent.CloseAppPicker, receivedIntent)
     }
 

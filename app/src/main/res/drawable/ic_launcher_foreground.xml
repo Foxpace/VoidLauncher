@@ -4,10 +4,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="@color/launcher_icon_ink"
-        android:pathData="M27,28H81A6,6 0,0 1,87 34A6,6 0,0 1,81 40H27A6,6 0,0 1,21 34A6,6 0,0 1,27 28ZM27,43H68A6,6 0,0 1,74 49A6,6 0,0 1,68 55H27A6,6 0,0 1,21 49A6,6 0,0 1,27 43ZM27,58H81A6,6 0,0 1,87 64A6,6 0,0 1,81 70H27A6,6 0,0 1,21 64A6,6 0,0 1,27 58ZM27,73H66A6,6 0,0 1,72 79A6,6 0,0 1,66 85H27A6,6 0,0 1,21 79A6,6 0,0 1,27 73Z" />
-    <path
-        android:fillColor="@color/launcher_icon_background"
-        android:pathData="M67,41a15,15 0,1 1,0 30a15,15 0,1 1,0 -30z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
+        <path
+            android:fillColor="@color/launcher_icon_ink"
+            android:pathData="M27,28H81A6,6 0,0 1,87 34A6,6 0,0 1,81 40H27A6,6 0,0 1,21 34A6,6 0,0 1,27 28ZM27,43H68A6,6 0,0 1,74 49A6,6 0,0 1,68 55H27A6,6 0,0 1,21 49A6,6 0,0 1,27 43ZM27,58H81A6,6 0,0 1,87 64A6,6 0,0 1,81 70H27A6,6 0,0 1,21 64A6,6 0,0 1,27 58ZM27,73H66A6,6 0,0 1,72 79A6,6 0,0 1,66 85H27A6,6 0,0 1,21 79A6,6 0,0 1,27 73Z" />
+        <path
+            android:fillColor="@color/launcher_icon_background"
+            android:pathData="M67,41a15,15 0,1 1,0 30a15,15 0,1 1,0 -30z" />
+    </group>
 </vector>

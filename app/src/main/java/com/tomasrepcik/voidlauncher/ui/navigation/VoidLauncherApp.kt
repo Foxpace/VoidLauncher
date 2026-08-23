@@ -1,16 +1,13 @@
 package com.tomasrepcik.voidlauncher.ui.navigation
 
-import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -28,12 +25,10 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.tomasrepcik.voidlauncher.LauncherApplication
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
-import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
-import com.tomasrepcik.voidlauncher.data.repository.RepositoryMutationOutcome
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
-import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationScreen
+import com.tomasrepcik.voidlauncher.ui.customization.CustomizationActions
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationViewModel
 import com.tomasrepcik.voidlauncher.ui.customization.ShortcutPickerScreen
 import com.tomasrepcik.voidlauncher.ui.customization.ShortcutPickerActions
@@ -44,15 +39,13 @@ import com.tomasrepcik.voidlauncher.ui.drawer.DrawerViewModel
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeViewModel
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceActions
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.ui.onboarding.NavigationTutorial
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorScreen
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorViewModel
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEffect
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListScreen
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -77,11 +70,26 @@ data class ScheduleEditorRoute(val scheduleId: String? = null) : NavKey
 fun VoidLauncherApp() {
     val context = LocalContext.current
     val appContainer = (context.applicationContext as LauncherApplication).appContainer
-    val repositoryState by appContainer.launcherRepository.state.collectAsStateWithLifecycle()
+    val appViewModel: LauncherAppViewModel = viewModel(
+        factory = LauncherAppViewModel.provideFactory(appContainer.launcherRepository),
+    )
+    val repositoryState by appViewModel.repositoryState.collectAsStateWithLifecycle()
+    val appearanceViewModel: HomeAppearanceViewModel = viewModel(
+        factory = HomeAppearanceViewModel.provideFactory(
+            context = context,
+            repository = appContainer.launcherRepository,
+        ),
+    )
+    val appearance by appearanceViewModel.state.collectAsStateWithLifecycle()
+    val appearanceActions = remember(appearanceViewModel) {
+        HomeAppearanceActions(
+            onBackgroundSelected = appearanceViewModel::selectBackground,
+            onRestoreDefault = appearanceViewModel::restoreDefault,
+            onUseBackgroundColorsChange = appearanceViewModel::setUseBackgroundColors,
+        )
+    }
     val backStack = rememberNavBackStack(HomeRoute)
     val snackbarHostState = remember { SnackbarHostState() }
-    val mutationScope = rememberCoroutineScope()
-    val errorMessageMapper = remember { AppErrorMessageMapper() }
     var tutorialReplayRequested by rememberSaveable { mutableStateOf(false) }
     var tutorialDismissedThisSession by rememberSaveable { mutableStateOf(false) }
     val hasSeenNavigationTutorial = (repositoryState as? LauncherRepositoryState.Ready)
@@ -90,6 +98,15 @@ fun VoidLauncherApp() {
         ?.hasSeenNavigationTutorial
     val showNavigationTutorial = tutorialReplayRequested ||
         (hasSeenNavigationTutorial == false && !tutorialDismissedThisSession)
+
+    LauncherEffectHost(
+        effects = appViewModel.effects,
+        snackbarHostState = snackbarHostState,
+    )
+    LauncherEffectHost(
+        effects = appearanceViewModel.effects,
+        snackbarHostState = snackbarHostState,
+    )
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -111,13 +128,13 @@ fun VoidLauncherApp() {
                         )
                     )
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
-                    CollectLauncherActions(
-                        actions = viewModel.actions,
-                        feedback = viewModel.feedback,
+                    LauncherEffectHost(
+                        effects = viewModel.effects,
                         snackbarHostState = snackbarHostState,
                     )
                     HomeScreen(
                         state = state,
+                        appearance = appearance,
                         actions = HomeActions(
                             onQueryChange = viewModel::onQueryChange,
                             onPrimarySearch = { viewModel.onSearch(SearchTarget.Primary) },
@@ -129,33 +146,10 @@ fun VoidLauncherApp() {
                             onShortcutClicked = viewModel::onShortcutClicked,
                             onOpenDrawer = { backStack.pushSingleTop(AppListRoute) },
                             onOpenSchedules = { backStack.pushSingleTop(ScheduleListRoute) },
-                            onRemoveHomeApp = { app ->
-                                mutationScope.launchMutation(
-                                    context,
-                                    snackbarHostState,
-                                    errorMessageMapper,
-                                    mutation = { viewModel.removeHomeApp(app) },
-                                )
-                            },
-                            onRenameHomeApp = { app, label ->
-                                mutationScope.launchMutation(
-                                    context,
-                                    snackbarHostState,
-                                    errorMessageMapper,
-                                    mutation = { viewModel.renameHomeApp(app, label) },
-                                )
-                            },
+                            onRemoveHomeApp = viewModel::removeHomeApp,
+                            onRenameHomeApp = viewModel::renameHomeApp,
                             onUninstallApp = viewModel::uninstallApp,
-                            onReorderHomeApps = { fromIndex, toIndex ->
-                                mutationScope.launchMutation(
-                                    context,
-                                    snackbarHostState,
-                                    errorMessageMapper,
-                                    mutation = {
-                                        viewModel.reorderHomeApps(fromIndex, toIndex)
-                                    },
-                                )
-                            },
+                            onReorderHomeApps = viewModel::reorderHomeApps,
                         ),
                     )
                 }
@@ -168,8 +162,8 @@ fun VoidLauncherApp() {
                         )
                     )
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
-                    CollectLauncherActions(
-                        actions = viewModel.actions,
+                    LauncherEffectHost(
+                        effects = viewModel.effects,
                         snackbarHostState = snackbarHostState,
                     )
                     AppDrawerScreen(
@@ -179,22 +173,8 @@ fun VoidLauncherApp() {
                             onOpenSettings = { backStack.pushSingleTop(CustomizationRoute) },
                             onQueryChange = viewModel::onQueryChange,
                             onAppClicked = viewModel::onAppClicked,
-                            onAddHomeApp = { app ->
-                                mutationScope.launchMutation(
-                                    context,
-                                    snackbarHostState,
-                                    errorMessageMapper,
-                                    mutation = { viewModel.addHomeApp(app) },
-                                )
-                            },
-                            onRemoveHomeApp = { app ->
-                                mutationScope.launchMutation(
-                                    context,
-                                    snackbarHostState,
-                                    errorMessageMapper,
-                                    mutation = { viewModel.removeHomeApp(app) },
-                                )
-                            },
+                            onAddHomeApp = viewModel::addHomeApp,
+                            onRemoveHomeApp = viewModel::removeHomeApp,
                             onUninstallApp = viewModel::uninstallApp,
                         ),
                     )
@@ -207,10 +187,16 @@ fun VoidLauncherApp() {
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
                     CustomizationScreen(
                         state = state,
-                        onBack = backStack::popIfNotRoot,
-                        onEditShortcut = { slot -> backStack.pushSingleTop(ShortcutPickerRoute(slot)) },
-                        onOpenSchedules = { backStack.pushSingleTop(ScheduleListRoute) },
-                        onShowNavigationTutorial = { tutorialReplayRequested = true },
+                        appearance = appearance,
+                        appearanceActions = appearanceActions,
+                        actions = CustomizationActions(
+                            onBack = backStack::popIfNotRoot,
+                            onEditShortcut = { slot ->
+                                backStack.pushSingleTop(ShortcutPickerRoute(slot))
+                            },
+                            onOpenSchedules = { backStack.pushSingleTop(ScheduleListRoute) },
+                            onShowNavigationTutorial = { tutorialReplayRequested = true },
+                        ),
                     )
                 }
 
@@ -219,11 +205,9 @@ fun VoidLauncherApp() {
                         factory = ScheduleListViewModel.provideFactory(appContainer.launcherRepository)
                     )
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
-                    CollectScheduleEffects(
+                    LauncherEffectHost(
                         effects = viewModel.effects,
-                        context = context,
                         snackbarHostState = snackbarHostState,
-                        messageMapper = errorMessageMapper,
                     )
                     ScheduleListScreen(
                         state = state,
@@ -243,12 +227,10 @@ fun VoidLauncherApp() {
                         )
                     )
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
-                    CollectScheduleEffects(
+                    LauncherEffectHost(
                         effects = viewModel.effects,
-                        context = context,
                         snackbarHostState = snackbarHostState,
-                        messageMapper = errorMessageMapper,
-                        onSaved = backStack::popIfNotRoot,
+                        onCompleted = backStack::popIfNotRoot,
                     )
                     ScheduleEditorScreen(
                         state = state,
@@ -266,39 +248,20 @@ fun VoidLauncherApp() {
                         )
                     )
                     val state by viewModel.uiState.collectAsStateWithLifecycle()
+                    LauncherEffectHost(
+                        effects = viewModel.effects,
+                        snackbarHostState = snackbarHostState,
+                        onCompleted = backStack::popIfNotRoot,
+                    )
                     ShortcutPickerScreen(
                         slot = route.slot,
                         state = state,
                         actions = ShortcutPickerActions(
                             onBack = backStack::popIfNotRoot,
                             onQueryChange = viewModel::onQueryChange,
-                            onContactsSelected = {
-                                mutationScope.launchMutation(
-                                    context = context,
-                                    snackbarHostState = snackbarHostState,
-                                    messageMapper = errorMessageMapper,
-                                    mutation = viewModel::onContactsSelected,
-                                    onCompleted = backStack::popIfNotRoot,
-                                )
-                            },
-                            onCameraSelected = {
-                                mutationScope.launchMutation(
-                                    context = context,
-                                    snackbarHostState = snackbarHostState,
-                                    messageMapper = errorMessageMapper,
-                                    mutation = viewModel::onCameraSelected,
-                                    onCompleted = backStack::popIfNotRoot,
-                                )
-                            },
-                            onAppSelected = { app ->
-                                mutationScope.launchMutation(
-                                    context = context,
-                                    snackbarHostState = snackbarHostState,
-                                    messageMapper = errorMessageMapper,
-                                    mutation = { viewModel.onAppSelected(app) },
-                                    onCompleted = backStack::popIfNotRoot,
-                                )
-                            },
+                            onContactsSelected = viewModel::onContactsSelected,
+                            onCameraSelected = viewModel::onCameraSelected,
+                            onAppSelected = viewModel::onAppSelected,
                         ),
                     )
                 }
@@ -314,7 +277,7 @@ fun VoidLauncherApp() {
 
         LauncherRepositoryBlocker(
             state = repositoryState,
-            onRetry = appContainer.launcherRepository::retryInitialization,
+            onRetry = appViewModel::retryInitialization,
         )
     }
 
@@ -324,55 +287,9 @@ fun VoidLauncherApp() {
                 tutorialReplayRequested = false
                 tutorialDismissedThisSession = true
                 if (hasSeenNavigationTutorial == false) {
-                    mutationScope.launchMutation(
-                        context = context,
-                        snackbarHostState = snackbarHostState,
-                        messageMapper = errorMessageMapper,
-                        mutation = {
-                            appContainer.launcherRepository.mutatePreferences(
-                                LauncherPreferencesMutation.MarkNavigationTutorialSeen
-                            )
-                        },
-                    )
+                    appViewModel.finishNavigationTutorial()
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun CollectScheduleEffects(
-    effects: Flow<ScheduleEffect>,
-    context: Context,
-    snackbarHostState: SnackbarHostState,
-    messageMapper: AppErrorMessageMapper,
-    onSaved: () -> Unit = {},
-) {
-    LaunchedEffect(effects) {
-        effects.collect { effect ->
-            when (effect) {
-                ScheduleEffect.Saved -> onSaved()
-                is ScheduleEffect.Failed -> snackbarHostState.showSnackbar(
-                    messageMapper.message(context, effect.error),
-                )
-            }
-        }
-    }
-}
-
-private fun CoroutineScope.launchMutation(
-    context: Context,
-    snackbarHostState: SnackbarHostState,
-    messageMapper: AppErrorMessageMapper,
-    mutation: suspend () -> RepositoryMutationOutcome,
-    onCompleted: () -> Unit = {},
-) {
-    launch {
-        when (val outcome = mutation()) {
-            RepositoryMutationOutcome.Completed -> onCompleted()
-            is RepositoryMutationOutcome.Failed -> snackbarHostState.showSnackbar(
-                messageMapper.message(context, outcome.error),
-            )
-        }
     }
 }

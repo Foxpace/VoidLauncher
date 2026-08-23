@@ -13,10 +13,9 @@ import com.tomasrepcik.voidlauncher.data.model.DEFAULT_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
-import com.tomasrepcik.voidlauncher.data.model.MAX_HOME_APP_COUNT
-import com.tomasrepcik.voidlauncher.data.model.MIN_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.data.model.transition
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import com.tomasrepcik.voidlauncher.domain.schedule.MINUTES_PER_DAY
 import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
@@ -90,10 +89,7 @@ internal class RoomLauncherStorage(
             installedApps = installed.map(InstalledAppEntity::toModel),
             pinnedApps = pinned.map(PinnedAppEntity::toStored),
             shortcuts = shortcuts.mapNotNull(ShortcutEntity::toStored),
-            preferences = LauncherPreferences(
-                homeAppCount = preferences?.homeAppCount ?: DEFAULT_HOME_APP_COUNT,
-                hasSeenNavigationTutorial = preferences?.hasSeenNavigationTutorial ?: false,
-            ),
+            preferences = preferences?.model ?: LauncherPreferences(),
             schedules = schedules.map(AppScheduleEntity::toModel),
         )
     }.catch { cause ->
@@ -167,17 +163,8 @@ internal class RoomLauncherStorage(
     }
 
     override suspend fun mutatePreferences(mutation: LauncherPreferencesMutation) = storageCall {
-        val current = preferencesDao.get()
-            ?: LauncherPreferencesEntity(homeAppCount = DEFAULT_HOME_APP_COUNT)
-        val updated = when (mutation) {
-            is LauncherPreferencesMutation.SetHomeAppCount -> current.copy(
-                homeAppCount = mutation.count.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT),
-            )
-            LauncherPreferencesMutation.MarkNavigationTutorialSeen -> current.copy(
-                hasSeenNavigationTutorial = true,
-            )
-        }
-        preferencesDao.upsert(updated)
+        val current = preferencesDao.get()?.model ?: LauncherPreferences()
+        preferencesDao.upsert(mutation.transition(current).entity)
     }
 
     override suspend fun mutateSchedule(mutation: ScheduleMutation) = storageCall {
@@ -260,17 +247,7 @@ internal class InMemoryLauncherStorage(
     }
 
     override suspend fun mutatePreferences(mutation: LauncherPreferencesMutation) = mutate { snapshot ->
-        val updated = when (mutation) {
-            is LauncherPreferencesMutation.SetHomeAppCount -> snapshot.preferences.copy(
-                homeAppCount = mutation.count.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT),
-            )
-            LauncherPreferencesMutation.MarkNavigationTutorialSeen -> snapshot.preferences.copy(
-                hasSeenNavigationTutorial = true,
-            )
-        }
-        snapshot.copy(
-            preferences = updated,
-        )
+        snapshot.copy(preferences = mutation.transition(snapshot.preferences))
     }
 
     override suspend fun mutateSchedule(mutation: ScheduleMutation) = mutate { snapshot ->
@@ -361,6 +338,22 @@ private fun InstalledAppEntity.toModel() = InstalledApp(
     label = label,
     sortLabel = sortLabel,
 )
+
+private val LauncherPreferencesEntity.model: LauncherPreferences
+    get() = LauncherPreferences(
+        homeAppCount = homeAppCount,
+        hasSeenNavigationTutorial = hasSeenNavigationTutorial,
+        homeBackgroundUri = homeBackgroundUri,
+        useBackgroundColors = useBackgroundColors,
+    )
+
+private val LauncherPreferences.entity: LauncherPreferencesEntity
+    get() = LauncherPreferencesEntity(
+        homeAppCount = homeAppCount,
+        hasSeenNavigationTutorial = hasSeenNavigationTutorial,
+        homeBackgroundUri = homeBackgroundUri,
+        useBackgroundColors = useBackgroundColors,
+    )
 
 private fun AppSchedule.toEntity() = AppScheduleEntity(
     id = id,

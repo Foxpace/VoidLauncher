@@ -21,6 +21,7 @@ import com.tomasrepcik.voidlauncher.ui.drawer.DrawerUiState
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeUiState
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceState
 import com.tomasrepcik.voidlauncher.ui.theme.VoidLauncherTheme
 import org.junit.Rule
 import org.junit.Test
@@ -153,6 +154,7 @@ private class HomeRobot(
                         query = query,
                         homeApps = homeApps,
                         isScheduleActive = isScheduleActive,
+                        isLoading = false,
                         shortcuts = listOf(
                             ResolvedShortcut(
                                 slot = ShortcutSlot.LEFT,
@@ -166,6 +168,7 @@ private class HomeRobot(
                             ),
                         ),
                     ),
+                    appearance = HomeAppearanceState(),
                     actions = HomeActions(
                         onQueryChange = { query = it },
                         onPrimarySearch = {},

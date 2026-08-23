@@ -49,26 +49,28 @@ import com.tomasrepcik.voidlauncher.ui.components.AppIcon
 import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchField
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationActions
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceActions
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceSettings
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceState
 
 @Composable
 fun CustomizationScreen(
     state: CustomizationUiState,
-    onBack: () -> Unit,
-    onEditShortcut: (ShortcutSlot) -> Unit,
-    onOpenSchedules: () -> Unit,
-    onShowNavigationTutorial: () -> Unit,
+    appearance: HomeAppearanceState,
+    appearanceActions: HomeAppearanceActions,
+    actions: CustomizationActions,
 ) {
     var showOpenSourceLicenses by rememberSaveable { mutableStateOf(false) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         SwipeNavigationContainer(
             modifier = Modifier.fillMaxSize(),
-            actions = SwipeNavigationActions(onClose = onBack),
+            actions = SwipeNavigationActions(onClose = actions.onBack),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 CustomizationHeader(
                     title = stringResource(R.string.customize_launcher),
-                    onBack = onBack,
+                    onBack = actions.onBack,
                 )
                 LazyColumn(
                     modifier = Modifier
@@ -79,6 +81,17 @@ fun CustomizationScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
+                        SettingsSectionTitle(stringResource(R.string.home_appearance))
+                    }
+
+                    item {
+                        HomeAppearanceSettings(
+                            state = appearance,
+                            actions = appearanceActions,
+                        )
+                    }
+
+                    item {
                         SettingsSectionTitle(stringResource(R.string.bottom_shortcuts))
                     }
 
@@ -88,7 +101,7 @@ fun CustomizationScreen(
                     ) { shortcut ->
                         ShortcutEditorRow(
                             shortcut = shortcut,
-                            onEdit = { onEditShortcut(shortcut.slot) },
+                            onEdit = { actions.onEditShortcut(shortcut.slot) },
                         )
                     }
 
@@ -98,7 +111,7 @@ fun CustomizationScreen(
 
                     item {
                         ElevatedCard(
-                            onClick = onOpenSchedules,
+                            onClick = actions.onOpenSchedules,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("open_schedules_button"),
@@ -140,7 +153,7 @@ fun CustomizationScreen(
 
                     item {
                         ElevatedCard(
-                            onClick = onShowNavigationTutorial,
+                            onClick = actions.onShowNavigationTutorial,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("show_navigation_tutorial_button"),
@@ -194,6 +207,13 @@ fun CustomizationScreen(
         )
     }
 }
+
+data class CustomizationActions(
+    val onBack: () -> Unit,
+    val onEditShortcut: (ShortcutSlot) -> Unit,
+    val onOpenSchedules: () -> Unit,
+    val onShowNavigationTutorial: () -> Unit,
+)
 
 @Composable
 fun ShortcutPickerScreen(

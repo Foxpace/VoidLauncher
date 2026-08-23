@@ -17,7 +17,8 @@ class InstalledAppSearchScenarioTest {
     )
 
     @Test
-    fun drawerAndShortcutFilteringUseTheSameNormalizedSubstringRule() {
+    fun givenNormalizedQueries_whenAppsAreFiltered_thenDrawerAndShortcutRulesMatch() {
+        // THEN
         assertThat(search.filter("  POCASIE!! ", apps).map(InstalledApp::label))
             .containsExactly("Čas & Počasie")
         assertThat(search.filter("nal", apps).map(InstalledApp::label))
@@ -26,7 +27,8 @@ class InstalledAppSearchScenarioTest {
     }
 
     @Test
-    fun homeSuggestionsAreRankedAndLimited() {
+    fun givenMatchingApps_whenHomeSuggestionsAreRequested_thenResultsAreRankedAndLimited() {
+        // GIVEN
         val suggestionApps = listOf(
             app("Signal Beta"),
             app("Signals"),
@@ -36,14 +38,17 @@ class InstalledAppSearchScenarioTest {
             app("Silo"),
         )
 
+        // WHEN
         val result = search.suggestions("signal", suggestionApps, limit = 3)
 
+        // THEN
         assertThat(result.map(InstalledApp::label))
             .containsExactly("Signal", "Signals", "Signal Beta").inOrder()
     }
 
     @Test
-    fun primaryActionUsesExactUniquePrefixAndNearExactFuzzyMatches() {
+    fun givenExactPrefixAndFuzzyQueries_whenPrimaryActionIsResolved_thenMatchingAppsAreLaunched() {
+        // THEN
         assertThat(search.resolve(SearchTarget.Primary, "cas pocasIE", apps))
             .isEqualTo(LauncherAction.LaunchInstalledApp(apps[0]))
         assertThat(search.resolve(SearchTarget.Primary, "tele", apps))
@@ -53,7 +58,8 @@ class InstalledAppSearchScenarioTest {
     }
 
     @Test
-    fun ambiguousPrefixAndDistantQueryBecomeWebSearchActions() {
+    fun givenAmbiguousOrDistantQuery_whenPrimaryActionIsResolved_thenWebSearchActionIsReturned() {
+        // THEN
         assertThat(search.resolve(SearchTarget.Primary, "sig", apps))
             .isEqualTo(LauncherAction.OpenWebSearch("sig"))
         assertThat(search.resolve(SearchTarget.Primary, "best ramen nearby", apps))
@@ -61,13 +67,15 @@ class InstalledAppSearchScenarioTest {
     }
 
     @Test
-    fun blankQueriesAndMissingHintsRemainNormalFeedback() {
+    fun givenBlankOrUnmatchedQuery_whenSearchFeedbackIsResolved_thenNoActionOrHintIsReturned() {
+        // THEN
         assertThat(search.resolve(SearchTarget.Primary, "   ", apps)).isNull()
         assertThat(search.hint("zzzzzz", apps)).isNull()
     }
 
     @Test
-    fun destinationsReturnLauncherActionsDirectly() {
+    fun givenDestinationQueries_whenActionsAreResolved_thenDestinationActionsAreReturnedDirectly() {
+        // THEN
         assertThat(search.resolve(SearchTarget.Browser, " Kotlin flows ", apps))
             .isEqualTo(LauncherAction.OpenWebSearch("Kotlin flows"))
         assertThat(search.resolve(SearchTarget.PlayStore, " weather app ", apps))
@@ -77,7 +85,8 @@ class InstalledAppSearchScenarioTest {
     }
 
     @Test
-    fun sectionLettersUseTheSameNormalization() {
+    fun givenLabelsWithDiacriticsOrDigits_whenSectionLettersAreResolved_thenNormalizationIsApplied() {
+        // THEN
         assertThat(search.sectionLetter("Škola")).isEqualTo('S')
         assertThat(search.sectionLetter("123 Player")).isEqualTo('#')
     }

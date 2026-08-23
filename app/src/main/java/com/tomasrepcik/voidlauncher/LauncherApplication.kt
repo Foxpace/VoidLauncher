@@ -1,10 +1,7 @@
 package com.tomasrepcik.voidlauncher
 
 import android.app.Application
-import androidx.room.Room
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
-import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
+import com.tomasrepcik.voidlauncher.data.local.openLauncherDatabase
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.source.PackageManagerInstalledAppsDataSource
 import com.tomasrepcik.voidlauncher.data.source.observeInstalledAppChanges
@@ -16,14 +13,7 @@ class LauncherApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val database = Room.databaseBuilder(
-            applicationContext,
-            LauncherDatabase::class.java,
-            "void-launcher.db"
-        )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
-            .fallbackToDestructiveMigration(dropAllTables = true)
-            .build()
+        val database = openLauncherDatabase(applicationContext)
 
         appContainer = AppContainer(
             launcherRepository = LauncherRepository(
@@ -35,57 +25,6 @@ class LauncherApplication : Application() {
                 ),
             ),
             installedAppSearch = InstalledAppSearch()
-        )
-    }
-}
-
-private val MIGRATION_2_3 = object : Migration(2, 3) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
-            """
-            CREATE TABLE IF NOT EXISTS `installed_apps` (
-                `packageName` TEXT NOT NULL,
-                `activityName` TEXT NOT NULL,
-                `label` TEXT NOT NULL,
-                `sortLabel` TEXT NOT NULL,
-                PRIMARY KEY(`packageName`, `activityName`)
-            )
-            """.trimIndent()
-        )
-    }
-}
-
-private val MIGRATION_3_4 = object : Migration(3, 4) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
-            """
-            CREATE TABLE IF NOT EXISTS `app_schedules` (
-                `id` TEXT NOT NULL,
-                `name` TEXT NOT NULL,
-                `days` TEXT NOT NULL,
-                `startMinute` INTEGER NOT NULL,
-                `endMinute` INTEGER NOT NULL,
-                `appKeys` TEXT NOT NULL,
-                PRIMARY KEY(`id`)
-            )
-            """.trimIndent()
-        )
-    }
-}
-
-private val MIGRATION_4_5 = object : Migration(4, 5) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
-            "ALTER TABLE `app_schedules` ADD COLUMN `enabled` INTEGER NOT NULL DEFAULT 1"
-        )
-    }
-}
-
-private val MIGRATION_5_6 = object : Migration(5, 6) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL(
-            "ALTER TABLE `launcher_preferences` " +
-                "ADD COLUMN `hasSeenNavigationTutorial` INTEGER NOT NULL DEFAULT 0"
         )
     }
 }

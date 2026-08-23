@@ -8,8 +8,11 @@ import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
+import com.tomasrepcik.voidlauncher.data.repository.RepositoryMutationOutcome
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
+import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
+import com.tomasrepcik.voidlauncher.ui.sendOutcome
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,9 +35,9 @@ class DrawerViewModel(
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
-    private val actionChannel = Channel<LauncherAction>(capacity = Channel.BUFFERED)
+    private val effectChannel = Channel<LauncherUiEffect>(capacity = Channel.BUFFERED)
 
-    val actions = actionChannel.receiveAsFlow()
+    internal val effects = effectChannel.receiveAsFlow()
 
     val uiState: StateFlow<DrawerUiState> = combine(
         repository.state,
@@ -61,18 +64,22 @@ class DrawerViewModel(
 
     fun onAppClicked(app: InstalledApp) {
         viewModelScope.launch {
-            actionChannel.send(LauncherAction.LaunchInstalledApp(app))
+            effectChannel.send(LauncherUiEffect.Action(LauncherAction.LaunchInstalledApp(app)))
         }
     }
 
-    suspend fun addHomeApp(app: InstalledApp) = repository.addHomeApp(app.key)
+    fun addHomeApp(app: InstalledApp) = mutate { repository.addHomeApp(app.key) }
 
-    suspend fun removeHomeApp(app: InstalledApp) = repository.removeHomeApp(app.key)
+    fun removeHomeApp(app: InstalledApp) = mutate { repository.removeHomeApp(app.key) }
 
     fun uninstallApp(app: InstalledApp) {
         viewModelScope.launch {
-            actionChannel.send(LauncherAction.UninstallApp(app))
+            effectChannel.send(LauncherUiEffect.Action(LauncherAction.UninstallApp(app)))
         }
+    }
+
+    private fun mutate(mutation: suspend () -> RepositoryMutationOutcome) {
+        viewModelScope.launch { effectChannel.sendOutcome(mutation()) }
     }
 
     companion object {

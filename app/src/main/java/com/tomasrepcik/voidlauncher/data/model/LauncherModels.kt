@@ -18,11 +18,34 @@ data class InstalledApp(
 data class LauncherPreferences(
     val homeAppCount: Int = DEFAULT_HOME_APP_COUNT,
     val hasSeenNavigationTutorial: Boolean = false,
+    val homeBackgroundUri: String? = null,
+    val useBackgroundColors: Boolean = false,
 )
 
 sealed interface LauncherPreferencesMutation {
     data class SetHomeAppCount(val count: Int) : LauncherPreferencesMutation
+    data class SetHomeBackground(val uri: String?) : LauncherPreferencesMutation
+    data class SetUseBackgroundColors(val enabled: Boolean) : LauncherPreferencesMutation
     data object MarkNavigationTutorialSeen : LauncherPreferencesMutation
+}
+
+internal fun LauncherPreferencesMutation.transition(
+    current: LauncherPreferences,
+): LauncherPreferences {
+    val updated = when (this) {
+        is LauncherPreferencesMutation.SetHomeAppCount -> current.copy(homeAppCount = count)
+        is LauncherPreferencesMutation.SetHomeBackground -> current.copy(homeBackgroundUri = uri)
+        is LauncherPreferencesMutation.SetUseBackgroundColors -> current.copy(
+            useBackgroundColors = enabled,
+        )
+        LauncherPreferencesMutation.MarkNavigationTutorialSeen -> current.copy(
+            hasSeenNavigationTutorial = true,
+        )
+    }
+    return updated.copy(
+        homeAppCount = updated.homeAppCount.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT),
+        useBackgroundColors = updated.useBackgroundColors && updated.homeBackgroundUri != null,
+    )
 }
 
 enum class ShortcutSlot {

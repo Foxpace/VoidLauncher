@@ -24,6 +24,7 @@ import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationScreen
+import com.tomasrepcik.voidlauncher.ui.customization.CustomizationActions
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationUiState
 import com.tomasrepcik.voidlauncher.ui.components.LocalAppIconContent
 import com.tomasrepcik.voidlauncher.ui.drawer.AppDrawerActions
@@ -32,6 +33,8 @@ import com.tomasrepcik.voidlauncher.ui.drawer.DrawerUiState
 import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeUiState
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceActions
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceState
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorScreen
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorUiState
 import com.tomasrepcik.voidlauncher.ui.theme.VoidLauncherTheme
@@ -117,7 +120,7 @@ private val drawerActions = AppDrawerActions(
     showBackground = true,
 )
 @Composable
-fun readmeHome() {
+fun ReadmeHome() {
     ReadmePreview {
         HomeScreen(
             state = HomeUiState(
@@ -125,6 +128,7 @@ fun readmeHome() {
                 shortcuts = sampleShortcuts,
                 isLoading = false,
             ),
+            appearance = HomeAppearanceState(),
             actions = homeActions,
         )
     }
@@ -139,7 +143,7 @@ fun readmeHome() {
     showBackground = true,
 )
 @Composable
-fun readmeDrawer() {
+fun ReadmeDrawer() {
     ReadmePreview {
         AppDrawerScreen(
             state = DrawerUiState(
@@ -161,7 +165,7 @@ fun readmeDrawer() {
     showBackground = true,
 )
 @Composable
-fun readmeSchedule() {
+fun ReadmeSchedule() {
     ReadmePreview {
         ScheduleEditorScreen(
             state = ScheduleEditorUiState(
@@ -196,14 +200,18 @@ fun readmeSchedule() {
     showBackground = true,
 )
 @Composable
-fun readmeCustomize() {
+fun ReadmeCustomize() {
     ReadmePreview {
         CustomizationScreen(
             state = CustomizationUiState(shortcuts = sampleShortcuts),
-            onBack = {},
-            onEditShortcut = {},
-            onOpenSchedules = {},
-            onShowNavigationTutorial = {},
+            appearance = HomeAppearanceState(),
+            appearanceActions = HomeAppearanceActions(),
+            actions = CustomizationActions(
+                onBack = {},
+                onEditShortcut = {},
+                onOpenSchedules = {},
+                onShowNavigationTutorial = {},
+            ),
         )
     }
 }
