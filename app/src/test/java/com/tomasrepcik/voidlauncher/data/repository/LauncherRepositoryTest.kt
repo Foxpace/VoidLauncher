@@ -3,6 +3,7 @@ package com.tomasrepcik.voidlauncher.data.repository
 import android.database.sqlite.SQLiteException
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
@@ -69,13 +70,15 @@ class LauncherRepositoryTest {
         repository.saveHomeApps(listOf(camera.key, maps.key, camera.key))
         repository.renameHomeApp(maps.key, "Navigation")
         repository.reorderHomeApps(1, 0)
-        repository.setHomeAppCount(100)
+        repository.mutatePreferences(LauncherPreferencesMutation.SetHomeAppCount(100))
+        repository.mutatePreferences(LauncherPreferencesMutation.MarkNavigationTutorialSeen)
         advanceUntilIdle()
 
         val launcher = repository.readyState().launcher
         assertThat(launcher.pinnedHomeApps.map { it.label })
             .containsExactly("Navigation", "Camera").inOrder()
         assertThat(launcher.preferences.homeAppCount).isEqualTo(10)
+        assertThat(launcher.preferences.hasSeenNavigationTutorial).isTrue()
     }
 
     @Test

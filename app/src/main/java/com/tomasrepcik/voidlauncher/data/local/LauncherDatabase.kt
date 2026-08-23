@@ -35,6 +35,7 @@ data class LauncherPreferencesEntity(
     @PrimaryKey
     val id: Int = 0,
     val homeAppCount: Int,
+    val hasSeenNavigationTutorial: Boolean = false,
 )
 
 @Entity(tableName = "installed_apps", primaryKeys = ["packageName", "activityName"])
@@ -134,7 +135,7 @@ interface AppScheduleDao {
         InstalledAppEntity::class,
         AppScheduleEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {

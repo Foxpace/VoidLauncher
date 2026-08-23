@@ -21,7 +21,7 @@ class LauncherApplication : Application() {
             LauncherDatabase::class.java,
             "void-launcher.db"
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
 
@@ -77,6 +77,15 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
             "ALTER TABLE `app_schedules` ADD COLUMN `enabled` INTEGER NOT NULL DEFAULT 1"
+        )
+    }
+}
+
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `launcher_preferences` " +
+                "ADD COLUMN `hasSeenNavigationTutorial` INTEGER NOT NULL DEFAULT 0"
         )
     }
 }

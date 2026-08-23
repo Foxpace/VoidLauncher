@@ -4,6 +4,7 @@ import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
+import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
@@ -154,9 +155,10 @@ class LauncherRepository internal constructor(
     suspend fun saveShortcut(slot: ShortcutSlot, selection: ShortcutSelection) =
         performMutation(AppOperation.SAVE_SHORTCUT) { storage.saveShortcut(slot, selection) }
 
-    suspend fun setHomeAppCount(count: Int) = performMutation(AppOperation.UPDATE_PREFERENCES) {
-        storage.setHomeAppCount(count)
-    }
+    suspend fun mutatePreferences(mutation: LauncherPreferencesMutation) =
+        performMutation(AppOperation.UPDATE_PREFERENCES) {
+            storage.mutatePreferences(mutation)
+        }
 
     suspend fun mutateSchedule(mutation: ScheduleMutation) = performMutation(
         operation = when (mutation) {

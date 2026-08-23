@@ -12,6 +12,7 @@ import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.DEFAULT_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
+import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.data.model.MAX_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.MIN_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
@@ -65,7 +66,7 @@ internal interface LauncherStorage {
     suspend fun reorderHomeApps(fromIndex: Int, toIndex: Int)
     suspend fun renameHomeApp(appKey: AppKey, newLabel: String?)
     suspend fun saveShortcut(slot: ShortcutSlot, selection: ShortcutSelection)
-    suspend fun setHomeAppCount(count: Int)
+    suspend fun mutatePreferences(mutation: LauncherPreferencesMutation)
     suspend fun mutateSchedule(mutation: ScheduleMutation)
 }
 
@@ -91,6 +92,7 @@ internal class RoomLauncherStorage(
             shortcuts = shortcuts.mapNotNull(ShortcutEntity::toStored),
             preferences = LauncherPreferences(
                 homeAppCount = preferences?.homeAppCount ?: DEFAULT_HOME_APP_COUNT,
+                hasSeenNavigationTutorial = preferences?.hasSeenNavigationTutorial ?: false,
             ),
             schedules = schedules.map(AppScheduleEntity::toModel),
         )
@@ -164,14 +166,18 @@ internal class RoomLauncherStorage(
         shortcutDao.upsert(selection.toEntity(slot))
     }
 
-    override suspend fun setHomeAppCount(count: Int) = storageCall {
+    override suspend fun mutatePreferences(mutation: LauncherPreferencesMutation) = storageCall {
         val current = preferencesDao.get()
-        preferencesDao.upsert(
-            LauncherPreferencesEntity(
-                id = current?.id ?: 0,
-                homeAppCount = count.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT),
-            ),
-        )
+            ?: LauncherPreferencesEntity(homeAppCount = DEFAULT_HOME_APP_COUNT)
+        val updated = when (mutation) {
+            is LauncherPreferencesMutation.SetHomeAppCount -> current.copy(
+                homeAppCount = mutation.count.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT),
+            )
+            LauncherPreferencesMutation.MarkNavigationTutorialSeen -> current.copy(
+                hasSeenNavigationTutorial = true,
+            )
+        }
+        preferencesDao.upsert(updated)
     }
 
     override suspend fun mutateSchedule(mutation: ScheduleMutation) = storageCall {
@@ -253,9 +259,17 @@ internal class InMemoryLauncherStorage(
         )
     }
 
-    override suspend fun setHomeAppCount(count: Int) = mutate { snapshot ->
+    override suspend fun mutatePreferences(mutation: LauncherPreferencesMutation) = mutate { snapshot ->
+        val updated = when (mutation) {
+            is LauncherPreferencesMutation.SetHomeAppCount -> snapshot.preferences.copy(
+                homeAppCount = mutation.count.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT),
+            )
+            LauncherPreferencesMutation.MarkNavigationTutorialSeen -> snapshot.preferences.copy(
+                hasSeenNavigationTutorial = true,
+            )
+        }
         snapshot.copy(
-            preferences = LauncherPreferences(count.coerceIn(MIN_HOME_APP_COUNT, MAX_HOME_APP_COUNT)),
+            preferences = updated,
         )
     }
 

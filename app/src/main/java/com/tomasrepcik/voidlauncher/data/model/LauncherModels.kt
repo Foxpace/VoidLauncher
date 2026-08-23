@@ -17,7 +17,13 @@ data class InstalledApp(
 
 data class LauncherPreferences(
     val homeAppCount: Int = DEFAULT_HOME_APP_COUNT,
+    val hasSeenNavigationTutorial: Boolean = false,
 )
+
+sealed interface LauncherPreferencesMutation {
+    data class SetHomeAppCount(val count: Int) : LauncherPreferencesMutation
+    data object MarkNavigationTutorialSeen : LauncherPreferencesMutation
+}
 
 enum class ShortcutSlot {
     LEFT,
