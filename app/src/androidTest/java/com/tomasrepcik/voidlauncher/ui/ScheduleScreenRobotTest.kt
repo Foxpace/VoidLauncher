@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
@@ -78,15 +79,16 @@ class ScheduleScreenRobotTest {
     }
 
     @Test
-    fun newEditorFitsDaysAndOpensAppsOnASeparateScreen() {
+    fun editorShowsSelectedAppsAndOpensPickerOnASeparateScreen() {
         val mail = app("Mail")
+        val calendar = app("Calendar")
         var receivedIntent: ScheduleEditorIntent? = null
         composeRule.setContent {
             VoidLauncherTheme {
                 ScheduleEditorScreen(
                     state = ScheduleEditorUiState(
-                        selectedAppKeys = setOf(mail.key),
-                        installedApps = listOf(mail),
+                        selectedAppKeys = setOf(mail.key, calendar.key),
+                        installedApps = listOf(mail, calendar),
                         isLoading = false,
                     ),
                     onBack = {},
@@ -99,17 +101,16 @@ class ScheduleScreenRobotTest {
         DayOfWeek.entries.forEach { day ->
             composeRule.onNodeWithTag("schedule_day_${day.name}").assertIsDisplayed()
         }
-        assertEquals(
-            0,
-            composeRule.onAllNodesWithText("Use this schedule").fetchSemanticsNodes().size,
-        )
-        assertEquals(
-            0,
-            composeRule.onAllNodesWithTag("schedule_app_search").fetchSemanticsNodes().size,
-        )
-        composeRule.onNodeWithTag("schedule_choose_apps_button").assertIsDisplayed()
+        val enabledControls = composeRule.onAllNodesWithText("Use this schedule")
+        assertEquals(0, enabledControls.fetchSemanticsNodes().size)
+        val appSearchFields = composeRule.onAllNodesWithTag("schedule_app_search")
+        assertEquals(0, appSearchFields.fetchSemanticsNodes().size)
+        listOf(mail, calendar).forEach { app ->
+            val tag = "schedule_selected_app_${app.key.packageName}_${app.key.activityName}"
+            composeRule.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+        }
         composeRule.onNodeWithTag("schedule_save_button").assertIsDisplayed()
-        composeRule.onNodeWithTag("schedule_choose_apps_button").performClick()
+        composeRule.onNodeWithTag("schedule_choose_apps_button").performScrollTo().performClick()
         assertEquals(ScheduleEditorIntent.OpenAppPicker, receivedIntent)
 
         composeRule.onNodeWithTag("schedule_preset_Every day").performClick()
@@ -124,8 +125,8 @@ class ScheduleScreenRobotTest {
             VoidLauncherTheme {
                 ScheduleEditorScreen(
                     state = ScheduleEditorUiState(
-                        selectedAppKeys = setOf(mail.key),
-                        installedApps = listOf(mail),
+                        selectedAppKeys = setOf(mail.key, calendar.key),
+                        installedApps = listOf(mail, calendar),
                         isAppPickerOpen = true,
                         isLoading = false,
                     ),

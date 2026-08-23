@@ -224,6 +224,34 @@ fun ScheduleEditorScreen(
                 Text(stringResource(R.string.schedule_app_count, state.selectedAppKeys.size))
             }
         }
+        items(
+            items = state.installedApps.filter { app -> app.key in state.selectedAppKeys },
+            key = { app -> "selected:${app.key.packageName}:${app.key.activityName}" },
+        ) { app ->
+            ElevatedCard(
+                modifier = Modifier.testTag(
+                    "schedule_selected_app_${app.key.packageName}_${app.key.activityName}"
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AppIcon(
+                        app = app,
+                        modifier = Modifier.size(40.dp),
+                    )
+                    Text(
+                        text = app.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
     }
 }
 
