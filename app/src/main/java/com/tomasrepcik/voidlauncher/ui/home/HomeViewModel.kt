@@ -96,23 +96,13 @@ class HomeViewModel(
         sendAction(LauncherAction.OpenShortcut(shortcut))
     }
 
-    fun removeHomeApp(app: InstalledApp) {
-        viewModelScope.launch {
-            repository.removeHomeApp(app.key)
-        }
-    }
+    suspend fun removeHomeApp(app: InstalledApp) = repository.removeHomeApp(app.key)
 
-    fun renameHomeApp(app: InstalledApp, newLabel: String?) {
-        viewModelScope.launch {
-            repository.renameHomeApp(app.key, newLabel)
-        }
-    }
+    suspend fun renameHomeApp(app: InstalledApp, newLabel: String?) =
+        repository.renameHomeApp(app.key, newLabel)
 
-    fun reorderHomeApps(fromIndex: Int, toIndex: Int) {
-        viewModelScope.launch {
-            repository.reorderHomeApps(fromIndex, toIndex)
-        }
-    }
+    suspend fun reorderHomeApps(fromIndex: Int, toIndex: Int) =
+        repository.reorderHomeApps(fromIndex, toIndex)
 
     fun uninstallApp(app: InstalledApp) {
         sendAction(LauncherAction.UninstallApp(app))

@@ -2,7 +2,6 @@ package com.tomasrepcik.voidlauncher.domain.action
 
 import android.app.SearchManager
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -32,11 +31,19 @@ internal interface LauncherActionPlatform {
 }
 
 internal class AndroidLauncherActionPlatform(
-    private val context: Context,
+    private val packageManager: PackageManager,
+    startActivity: (Intent) -> Unit,
 ) : LauncherActionPlatform {
-    private val packageManager = context.packageManager
+    private val startResolved: (Intent) -> Boolean = { intent ->
+        if (intent.resolveActivity(packageManager) == null) {
+            false
+        } else {
+            startActivity(intent)
+            true
+        }
+    }
 
-    override fun launchInstalledApp(app: InstalledApp): Boolean = context.startResolved(
+    override fun launchInstalledApp(app: InstalledApp): Boolean = startResolved(
         Intent().apply {
             component = ComponentName(app.key.packageName, app.key.activityName)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -59,10 +66,10 @@ internal class AndroidLauncherActionPlatform(
                 ContactsContract.Contacts.CONTENT_URI,
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        return context.startResolved(intent)
+        return startResolved(intent)
     }
 
-    override fun openWebSearch(query: String): Boolean = context.startResolved(
+    override fun openWebSearch(query: String): Boolean = startResolved(
         Intent(Intent.ACTION_WEB_SEARCH).apply {
             putExtra(SearchManager.QUERY, query)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -71,24 +78,24 @@ internal class AndroidLauncherActionPlatform(
 
     override fun openBrowserSearch(query: String): Boolean {
         val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
-        return context.startResolved(webIntent("https://www.google.com/search?q=$encodedQuery"))
+        return startResolved(webIntent("https://www.google.com/search?q=$encodedQuery"))
     }
 
-    override fun openPlayStore(query: String): Boolean = context.startResolved(
+    override fun openPlayStore(query: String): Boolean = startResolved(
         webIntent("market://search?q=${Uri.encode(query)}&c=apps"),
     )
 
-    override fun openPlayStoreWebsite(query: String): Boolean = context.startResolved(
+    override fun openPlayStoreWebsite(query: String): Boolean = startResolved(
         webIntent("https://play.google.com/store/search?q=${Uri.encode(query)}&c=apps"),
     )
 
-    override fun openMaps(query: String): Boolean = context.startResolved(
+    override fun openMaps(query: String): Boolean = startResolved(
         webIntent("geo:0,0?q=${Uri.encode(query)}").apply {
             `package` = "com.google.android.apps.maps"
         },
     )
 
-    override fun openMapsWebsite(query: String): Boolean = context.startResolved(
+    override fun openMapsWebsite(query: String): Boolean = startResolved(
         webIntent("https://www.google.com/maps/search/?api=1&query=${Uri.encode(query)}"),
     )
 
@@ -106,12 +113,12 @@ internal class AndroidLauncherActionPlatform(
         null
     }
 
-    override fun openUninstaller(packageName: String): Boolean = context.startResolved(
+    override fun openUninstaller(packageName: String): Boolean = startResolved(
         Intent(Intent.ACTION_DELETE, Uri.fromParts("package", packageName, null))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
 
-    override fun openAppInfo(packageName: String): Boolean = context.startResolved(
+    override fun openAppInfo(packageName: String): Boolean = startResolved(
         Intent(
             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.fromParts("package", packageName, null),
@@ -122,9 +129,3 @@ internal class AndroidLauncherActionPlatform(
 
 private fun webIntent(uri: String) = Intent(Intent.ACTION_VIEW, uri.toUri())
     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-private fun Context.startResolved(intent: Intent): Boolean {
-    if (intent.resolveActivity(packageManager) == null) return false
-    startActivity(intent)
-    return true
-}

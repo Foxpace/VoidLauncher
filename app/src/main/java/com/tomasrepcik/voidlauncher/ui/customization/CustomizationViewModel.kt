@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 data class CustomizationUiState(
     val shortcuts: List<ResolvedShortcut> = emptyList(),
@@ -86,23 +85,13 @@ class ShortcutPickerViewModel(
         query.value = value
     }
 
-    fun onAppSelected(app: InstalledApp) {
-        viewModelScope.launch {
-            repository.saveShortcut(slot, ShortcutSelection.AppShortcut(app.key))
-        }
-    }
+    suspend fun onAppSelected(app: InstalledApp) =
+        repository.saveShortcut(slot, ShortcutSelection.AppShortcut(app.key))
 
-    fun onContactsSelected() {
-        viewModelScope.launch {
-            repository.saveShortcut(slot, ShortcutSelection.SystemContacts)
-        }
-    }
+    suspend fun onContactsSelected() =
+        repository.saveShortcut(slot, ShortcutSelection.SystemContacts)
 
-    fun onCameraSelected() {
-        viewModelScope.launch {
-            repository.saveShortcut(slot, ShortcutSelection.SystemCamera)
-        }
-    }
+    suspend fun onCameraSelected() = repository.saveShortcut(slot, ShortcutSelection.SystemCamera)
 
     companion object {
         fun provideFactory(

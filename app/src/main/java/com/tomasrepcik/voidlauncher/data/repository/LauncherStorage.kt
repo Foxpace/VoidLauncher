@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 
 private const val HOME_SECTION = "HOME"
@@ -83,8 +85,7 @@ internal class RoomLauncherStorage(
             ),
         )
     }.catch { cause ->
-        if (cause is SQLiteException) throw StorageAccessException(cause)
-        throw cause
+        throw cause.asStorageAccessException()
     }
 
     override suspend fun initialize() = storageCall {
@@ -182,7 +183,8 @@ internal class InMemoryLauncherStorage(
     override suspend fun initialize() {
         if (initializationFailuresRemaining > 0) {
             initializationFailuresRemaining--
-            throw StorageAccessException(SQLiteException("planned in-memory initialization failure"))
+            throw SQLiteException("planned in-memory initialization failure")
+                .asStorageAccessException()
         }
         state.update { snapshot ->
             snapshot.copy(
@@ -245,17 +247,21 @@ internal class InMemoryLauncherStorage(
     private fun mutate(transform: (LauncherStorageSnapshot) -> LauncherStorageSnapshot) {
         if (writeFailuresRemaining > 0) {
             writeFailuresRemaining--
-            throw StorageAccessException(SQLiteException("planned in-memory write failure"))
+            throw SQLiteException("planned in-memory write failure")
+                .asStorageAccessException()
         }
         state.update(transform)
     }
 }
 
-private suspend inline fun <T> storageCall(crossinline block: suspend () -> T): T = try {
-    block()
-} catch (cause: SQLiteException) {
-    throw StorageAccessException(cause)
-}
+private suspend inline fun <T> storageCall(crossinline block: suspend () -> T): T = flow {
+    emit(block())
+}.catch { cause ->
+    throw cause.asStorageAccessException()
+}.first()
+
+private fun Throwable.asStorageAccessException(): StorageAccessException =
+    this as? StorageAccessException ?: StorageAccessException(this)
 
 private val PinnedAppEntity.key: AppKey
     get() = AppKey(packageName, activityName)

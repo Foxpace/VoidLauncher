@@ -1,8 +1,10 @@
 package com.tomasrepcik.voidlauncher.data.repository
 
+import android.database.sqlite.SQLiteException
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
+import com.tomasrepcik.voidlauncher.testing.PlannedRepositoryFailures
 import com.tomasrepcik.voidlauncher.testing.installedApp
 import com.tomasrepcik.voidlauncher.testing.launcherRepository
 import com.tomasrepcik.voidlauncher.testing.readyState
@@ -15,11 +17,14 @@ import org.junit.Test
 class LauncherRepositoryTest {
     @Test
     fun initializationFailureBlocksUntilRetryThenCreatesDefaults() = runTest {
-        val repository = launcherRepository(initializationFailuresBeforeSuccess = 1)
+        val repository = launcherRepository(
+            failures = PlannedRepositoryFailures(initializationCount = 1),
+        )
         advanceUntilIdle()
 
         val failure = repository.state.value as LauncherRepositoryState.InitializationError
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.STORAGE_INITIALIZATION_FAILED)
+        assertThat(failure.error.cause).isInstanceOf(SQLiteException::class.java)
 
         repository.retryInitialization()
         advanceUntilIdle()
@@ -31,12 +36,12 @@ class LauncherRepositoryTest {
     }
 
     @Test
-    fun writeFailurePreservesLastValidStateAndReturnsNonBlockingError() = runTest {
+    fun writeFailurePreservesLastValidStateAndReturnsError() = runTest {
         val camera = installedApp("Camera")
         val repository = launcherRepository(
             installedApps = listOf(camera),
             pinnedApps = listOf(camera),
-            writeFailuresBeforeSuccess = 1,
+            failures = PlannedRepositoryFailures(writeCount = 1),
         )
         advanceUntilIdle()
         val before = repository.readyState().launcher
@@ -47,8 +52,8 @@ class LauncherRepositoryTest {
         val failure = outcome as RepositoryMutationOutcome.Failed
         val ready = repository.readyState()
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.STORAGE_WRITE_FAILED)
+        assertThat(failure.error.cause).isInstanceOf(SQLiteException::class.java)
         assertThat(ready.launcher).isEqualTo(before)
-        assertThat(ready.mutationError).isEqualTo(failure.error)
     }
 
     @Test

@@ -15,7 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 
 interface InstalledAppsDataSource {
@@ -24,48 +25,23 @@ interface InstalledAppsDataSource {
 }
 
 class PackageManagerInstalledAppsDataSource(
-    private val context: Context,
+    private val packageManager: PackageManager,
+    private val launcherPackageName: String,
+    private val packageChanges: Flow<Unit>,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : InstalledAppsDataSource {
-
-    private val packageManager: PackageManager = context.packageManager
-
-    override fun observeInstalledApps(): Flow<List<InstalledApp>> = callbackFlow {
-        fun emitApps() {
-            launch(ioDispatcher) {
-                trySend(loadInstalledApps())
-            }
+    override fun observeInstalledApps(): Flow<List<InstalledApp>> = packageChanges
+        .onStart { emit(Unit) }
+        .map {
+            withContext(ioDispatcher) { loadInstalledApps() }
         }
-
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                emitApps()
-            }
-        }
-
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_CHANGED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addAction(Intent.ACTION_PACKAGE_REPLACED)
-            addDataScheme("package")
-        }
-
-        emitApps()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            context.registerReceiver(receiver, filter)
-        }
-
-        awaitClose {
-            context.unregisterReceiver(receiver)
-        }
-    }
 
     override suspend fun getInstalledApp(appKey: AppKey): InstalledApp? = withContext(ioDispatcher) {
-        runCatching { loadInstalledApp(appKey) }.getOrNull()
+        try {
+            loadInstalledApp(appKey)
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
     }
 
     private fun loadInstalledApps(): List<InstalledApp> {
@@ -73,7 +49,7 @@ class PackageManagerInstalledAppsDataSource(
         val resolveInfos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             packageManager.queryIntentActivities(
                 launcherIntent,
-                PackageManager.ResolveInfoFlags.of(0)
+                PackageManager.ResolveInfoFlags.of(0),
             )
         } else {
             @Suppress("DEPRECATION")
@@ -105,7 +81,7 @@ class PackageManagerInstalledAppsDataSource(
     }
 
     private fun resolveInstalledApp(activityInfo: ActivityInfo): InstalledApp? {
-        if (activityInfo.packageName == context.packageName) {
+        if (activityInfo.packageName == launcherPackageName) {
             return null
         }
         val label = activityInfo.loadLabel(packageManager).toString().trim()
@@ -120,4 +96,29 @@ class PackageManagerInstalledAppsDataSource(
             sortLabel = label.lowercase(),
         )
     }
+}
+
+fun Context.observeInstalledAppChanges(): Flow<Unit> = callbackFlow {
+    val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            trySend(Unit)
+        }
+    }
+
+    val filter = IntentFilter().apply {
+        addAction(Intent.ACTION_PACKAGE_ADDED)
+        addAction(Intent.ACTION_PACKAGE_CHANGED)
+        addAction(Intent.ACTION_PACKAGE_REMOVED)
+        addAction(Intent.ACTION_PACKAGE_REPLACED)
+        addDataScheme("package")
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+    } else {
+        @Suppress("DEPRECATION")
+        registerReceiver(receiver, filter)
+    }
+
+    awaitClose { unregisterReceiver(receiver) }
 }

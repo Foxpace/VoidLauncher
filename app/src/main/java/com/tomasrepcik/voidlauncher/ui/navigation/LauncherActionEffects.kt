@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.action.LauncherActionExecutor
 import com.tomasrepcik.voidlauncher.domain.action.LauncherActionOutcome
+import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import kotlinx.coroutines.flow.Flow
 
 @Composable
@@ -17,16 +18,21 @@ fun CollectLauncherActions(
     feedback: Flow<String>? = null,
 ) {
     val context = LocalContext.current
-    val executor = remember(context) { LauncherActionExecutor(context.applicationContext) }
+    val executor = remember { LauncherActionExecutor() }
+    val messageMapper = remember { AppErrorMessageMapper() }
 
-    LaunchedEffect(actions, executor) {
+    LaunchedEffect(actions, context, executor) {
         actions.collect { action ->
-            when (val outcome = executor.execute(action)) {
+            when (val outcome = executor.execute(context, action)) {
                 LauncherActionOutcome.Completed -> Unit
                 is LauncherActionOutcome.Recovered -> {
-                    outcome.message?.let { snackbarHostState.showSnackbar(it) }
+                    messageMapper.recoveryMessage(context, outcome.recovery)?.let { message ->
+                        snackbarHostState.showSnackbar(message)
+                    }
                 }
-                is LauncherActionOutcome.Failed -> snackbarHostState.showSnackbar(outcome.message)
+                is LauncherActionOutcome.Failed -> snackbarHostState.showSnackbar(
+                    messageMapper.message(context, outcome.error),
+                )
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.tomasrepcik.voidlauncher.ui.navigation
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -8,6 +9,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +24,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.tomasrepcik.voidlauncher.LauncherApplication
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.data.repository.RepositoryMutationOutcome
+import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationScreen
 import com.tomasrepcik.voidlauncher.ui.customization.CustomizationViewModel
@@ -34,6 +38,8 @@ import com.tomasrepcik.voidlauncher.ui.drawer.DrawerViewModel
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -55,6 +61,8 @@ fun VoidLauncherApp() {
     val repositoryState by appContainer.launcherRepository.state.collectAsStateWithLifecycle()
     val backStack = rememberNavBackStack(HomeRoute)
     val snackbarHostState = remember { SnackbarHostState() }
+    val mutationScope = rememberCoroutineScope()
+    val errorMessageMapper = remember { AppErrorMessageMapper() }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -93,10 +101,33 @@ fun VoidLauncherApp() {
                             onAppClicked = viewModel::onAppClicked,
                             onShortcutClicked = viewModel::onShortcutClicked,
                             onOpenDrawer = { backStack.pushSingleTop(AppListRoute) },
-                            onRemoveHomeApp = viewModel::removeHomeApp,
-                            onRenameHomeApp = viewModel::renameHomeApp,
+                            onRemoveHomeApp = { app ->
+                                mutationScope.launchMutation(
+                                    context,
+                                    snackbarHostState,
+                                    errorMessageMapper,
+                                    mutation = { viewModel.removeHomeApp(app) },
+                                )
+                            },
+                            onRenameHomeApp = { app, label ->
+                                mutationScope.launchMutation(
+                                    context,
+                                    snackbarHostState,
+                                    errorMessageMapper,
+                                    mutation = { viewModel.renameHomeApp(app, label) },
+                                )
+                            },
                             onUninstallApp = viewModel::uninstallApp,
-                            onReorderHomeApps = viewModel::reorderHomeApps,
+                            onReorderHomeApps = { fromIndex, toIndex ->
+                                mutationScope.launchMutation(
+                                    context,
+                                    snackbarHostState,
+                                    errorMessageMapper,
+                                    mutation = {
+                                        viewModel.reorderHomeApps(fromIndex, toIndex)
+                                    },
+                                )
+                            },
                         ),
                     )
                 }
@@ -120,8 +151,22 @@ fun VoidLauncherApp() {
                             onOpenSettings = { backStack.pushSingleTop(CustomizationRoute) },
                             onQueryChange = viewModel::onQueryChange,
                             onAppClicked = viewModel::onAppClicked,
-                            onAddHomeApp = viewModel::addHomeApp,
-                            onRemoveHomeApp = viewModel::removeHomeApp,
+                            onAddHomeApp = { app ->
+                                mutationScope.launchMutation(
+                                    context,
+                                    snackbarHostState,
+                                    errorMessageMapper,
+                                    mutation = { viewModel.addHomeApp(app) },
+                                )
+                            },
+                            onRemoveHomeApp = { app ->
+                                mutationScope.launchMutation(
+                                    context,
+                                    snackbarHostState,
+                                    errorMessageMapper,
+                                    mutation = { viewModel.removeHomeApp(app) },
+                                )
+                            },
                             onUninstallApp = viewModel::uninstallApp,
                         ),
                     )
@@ -155,16 +200,31 @@ fun VoidLauncherApp() {
                             onBack = backStack::popIfNotRoot,
                             onQueryChange = viewModel::onQueryChange,
                             onContactsSelected = {
-                                viewModel.onContactsSelected()
-                                backStack.popIfNotRoot()
+                                mutationScope.launchMutation(
+                                    context = context,
+                                    snackbarHostState = snackbarHostState,
+                                    messageMapper = errorMessageMapper,
+                                    mutation = viewModel::onContactsSelected,
+                                    onCompleted = backStack::popIfNotRoot,
+                                )
                             },
                             onCameraSelected = {
-                                viewModel.onCameraSelected()
-                                backStack.popIfNotRoot()
+                                mutationScope.launchMutation(
+                                    context = context,
+                                    snackbarHostState = snackbarHostState,
+                                    messageMapper = errorMessageMapper,
+                                    mutation = viewModel::onCameraSelected,
+                                    onCompleted = backStack::popIfNotRoot,
+                                )
                             },
                             onAppSelected = { app ->
-                                viewModel.onAppSelected(app)
-                                backStack.popIfNotRoot()
+                                mutationScope.launchMutation(
+                                    context = context,
+                                    snackbarHostState = snackbarHostState,
+                                    messageMapper = errorMessageMapper,
+                                    mutation = { viewModel.onAppSelected(app) },
+                                    onCompleted = backStack::popIfNotRoot,
+                                )
                             },
                         ),
                     )
@@ -184,6 +244,21 @@ fun VoidLauncherApp() {
             onRetry = appContainer.launcherRepository::retryInitialization,
         )
     }
+}
 
-    CollectRepositoryMutationErrors(repositoryState, snackbarHostState)
+private fun CoroutineScope.launchMutation(
+    context: Context,
+    snackbarHostState: SnackbarHostState,
+    messageMapper: AppErrorMessageMapper,
+    mutation: suspend () -> RepositoryMutationOutcome,
+    onCompleted: () -> Unit = {},
+) {
+    launch {
+        when (val outcome = mutation()) {
+            RepositoryMutationOutcome.Completed -> onCompleted()
+            is RepositoryMutationOutcome.Failed -> snackbarHostState.showSnackbar(
+                messageMapper.message(context, outcome.error),
+            )
+        }
+    }
 }

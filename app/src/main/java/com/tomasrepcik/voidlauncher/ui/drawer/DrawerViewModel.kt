@@ -65,17 +65,9 @@ class DrawerViewModel(
         }
     }
 
-    fun addHomeApp(app: InstalledApp) {
-        viewModelScope.launch {
-            repository.addHomeApp(app.key)
-        }
-    }
+    suspend fun addHomeApp(app: InstalledApp) = repository.addHomeApp(app.key)
 
-    fun removeHomeApp(app: InstalledApp) {
-        viewModelScope.launch {
-            repository.removeHomeApp(app.key)
-        }
-    }
+    suspend fun removeHomeApp(app: InstalledApp) = repository.removeHomeApp(app.key)
 
     fun uninstallApp(app: InstalledApp) {
         viewModelScope.launch {

@@ -7,7 +7,6 @@ import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
-import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
 import kotlinx.coroutines.test.runTest
@@ -15,11 +14,11 @@ import org.junit.Test
 
 class LauncherActionExecutorTest {
     private val platform = RecordingLauncherActionPlatform()
-    private val executor = LauncherActionExecutor(platform, TestActionMessages)
+    private val executor = LauncherActionExecutor()
 
     @Test
     fun givenInstalledApp_whenLaunched_thenActionCompletes() = runTest {
-        val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()))
+        val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()), platform)
 
         assertThat(outcome).isEqualTo(LauncherActionOutcome.Completed)
         assertThat(platform.calls).containsExactly("launch:dev.example")
@@ -29,19 +28,18 @@ class LauncherActionExecutorTest {
     fun givenMissingApp_whenLaunched_thenAppUnavailableIsReturned() = runTest {
         platform.launchInstalledApp = false
 
-        val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()))
+        val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()), platform)
 
         assertThat(outcome).isInstanceOf(LauncherActionOutcome.Failed::class.java)
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.APP_UNAVAILABLE)
-        assertThat(failure.message).isEqualTo("APP_UNAVAILABLE")
     }
 
     @Test
     fun givenUnavailableSearchApp_whenWebSearchRuns_thenBrowserFallbackCompletes() = runTest {
         platform.openWebSearch = false
 
-        val outcome = executor.execute(LauncherAction.OpenWebSearch("weather"))
+        val outcome = executor.execute(LauncherAction.OpenWebSearch("weather"), platform)
 
         assertThat(outcome).isEqualTo(
             LauncherActionOutcome.Recovered(ErrorRecovery.BROWSER_FALLBACK),
@@ -58,7 +56,7 @@ class LauncherActionExecutorTest {
             isAvailable = false,
         )
 
-        val outcome = executor.execute(LauncherAction.OpenShortcut(shortcut))
+        val outcome = executor.execute(LauncherAction.OpenShortcut(shortcut), platform)
 
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.APP_UNAVAILABLE)
@@ -69,12 +67,11 @@ class LauncherActionExecutorTest {
     fun givenSystemApp_whenUninstallRuns_thenAppInfoRecoveryCompletes() = runTest {
         platform.applicationFlags = ApplicationInfo.FLAG_SYSTEM
 
-        val outcome = executor.execute(LauncherAction.UninstallApp(app()))
+        val outcome = executor.execute(LauncherAction.UninstallApp(app()), platform)
 
         assertThat(outcome).isEqualTo(
             LauncherActionOutcome.Recovered(
-                ErrorRecovery.APP_INFO,
-                TestActionMessages.systemAppInfoOpened,
+                ErrorRecovery.SYSTEM_APP_INFO,
             ),
         )
         assertThat(platform.calls).containsExactly("flags:dev.example", "info:dev.example").inOrder()
@@ -85,11 +82,12 @@ class LauncherActionExecutorTest {
         platform.openUninstaller = false
         platform.openAppInfo = false
 
-        val outcome = executor.execute(LauncherAction.UninstallApp(app()))
+        val outcome = executor.execute(LauncherAction.UninstallApp(app()), platform)
 
         val failure = outcome as LauncherActionOutcome.Failed
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.DESTINATION_UNAVAILABLE)
-        assertThat(failure.error.recovery).isEqualTo(ErrorRecovery.APP_INFO)
+        assertThat(failure.error.recovery)
+            .isEqualTo(ErrorRecovery.UNINSTALL_UNAVAILABLE_APP_INFO)
         assertThat(platform.calls).containsExactly(
             "flags:dev.example",
             "uninstall:dev.example",
@@ -97,11 +95,16 @@ class LauncherActionExecutorTest {
         ).inOrder()
     }
 
-    @Test(expected = IllegalStateException::class)
-    fun givenUnexpectedDefect_whenActionRuns_thenDefectEscapes() = runTest {
-        platform.unexpectedFailure = IllegalStateException("defect")
+    @Test
+    fun givenUnexpectedDefect_whenActionRuns_thenAppErrorContainsDefect() = runTest {
+        val defect = IllegalStateException("defect")
+        platform.unexpectedFailure = defect
 
-        executor.execute(LauncherAction.LaunchInstalledApp(app()))
+        val outcome = executor.execute(LauncherAction.LaunchInstalledApp(app()), platform)
+
+        val failure = outcome as LauncherActionOutcome.Failed
+        assertThat(failure.error.kind).isEqualTo(AppErrorKind.UNEXPECTED)
+        assertThat(failure.error.cause).isSameInstanceAs(defect)
     }
 
     private fun app() = InstalledApp(
@@ -109,13 +112,6 @@ class LauncherActionExecutorTest {
         label = "Example",
         sortLabel = "example",
     )
-}
-
-private object TestActionMessages : LauncherActionMessages {
-    override val systemAppInfoOpened = "system app info"
-    override val uninstallBlockedInfoOpened = "uninstall blocked"
-    override val uninstallUnavailableInfoOpened = "uninstaller unavailable"
-    override fun error(error: AppError): String = error.kind.name
 }
 
 private class RecordingLauncherActionPlatform : LauncherActionPlatform {

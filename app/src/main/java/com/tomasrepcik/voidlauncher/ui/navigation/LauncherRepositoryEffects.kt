@@ -8,11 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +35,7 @@ fun LauncherRepositoryBlocker(
         }
         is LauncherRepositoryState.InitializationError -> {
             val context = LocalContext.current
-            val mapper = remember(context) { AppErrorMessageMapper(context) }
+            val mapper = remember { AppErrorMessageMapper() }
             Surface(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier.padding(32.dp),
@@ -45,7 +43,7 @@ fun LauncherRepositoryBlocker(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = mapper.message(state.error),
+                        text = mapper.message(context, state.error),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Button(onClick = onRetry) {
@@ -54,18 +52,5 @@ fun LauncherRepositoryBlocker(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun CollectRepositoryMutationErrors(
-    state: LauncherRepositoryState,
-    snackbarHostState: SnackbarHostState,
-) {
-    val error = (state as? LauncherRepositoryState.Ready)?.mutationError
-    val context = LocalContext.current
-    val mapper = remember(context) { AppErrorMessageMapper(context) }
-    LaunchedEffect(error) {
-        if (error != null) snackbarHostState.showSnackbar(mapper.message(error))
     }
 }

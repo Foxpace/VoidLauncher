@@ -46,13 +46,17 @@ fun TestScope.startCollecting(state: StateFlow<*>) {
     }
 }
 
+data class PlannedRepositoryFailures(
+    val initializationCount: Int = 0,
+    val writeCount: Int = 0,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 fun TestScope.launcherRepository(
     installedApps: List<InstalledApp> = emptyList(),
     pinnedApps: List<InstalledApp> = emptyList(),
     shortcuts: List<ResolvedShortcut> = emptyList(),
-    initializationFailuresBeforeSuccess: Int = 0,
-    writeFailuresBeforeSuccess: Int = 0,
+    failures: PlannedRepositoryFailures = PlannedRepositoryFailures(),
 ): LauncherRepository {
     val source = TestInstalledAppsDataSource(installedApps)
     val storage = InMemoryLauncherStorage(
@@ -61,8 +65,8 @@ fun TestScope.launcherRepository(
             pinnedApps = pinnedApps.map { StoredPinnedApp(it.key) },
             shortcuts = shortcuts.map { StoredShortcut(it.slot, it.selection) },
         ),
-        initializationFailuresRemaining = initializationFailuresBeforeSuccess,
-        writeFailuresRemaining = writeFailuresBeforeSuccess,
+        initializationFailuresRemaining = failures.initializationCount,
+        writeFailuresRemaining = failures.writeCount,
     )
     val repositoryScope = CoroutineScope(
         backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler),

@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.source.PackageManagerInstalledAppsDataSource
+import com.tomasrepcik.voidlauncher.data.source.observeInstalledAppChanges
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 
 class LauncherApplication : Application() {
@@ -27,7 +28,11 @@ class LauncherApplication : Application() {
         appContainer = AppContainer(
             launcherRepository = LauncherRepository(
                 database = database,
-                installedAppsDataSource = PackageManagerInstalledAppsDataSource(applicationContext)
+                installedAppsDataSource = PackageManagerInstalledAppsDataSource(
+                    packageManager = applicationContext.packageManager,
+                    launcherPackageName = packageName,
+                    packageChanges = applicationContext.observeInstalledAppChanges(),
+                ),
             ),
             installedAppSearch = InstalledAppSearch()
         )

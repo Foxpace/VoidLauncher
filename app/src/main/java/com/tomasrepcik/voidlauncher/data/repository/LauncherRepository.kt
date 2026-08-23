@@ -12,12 +12,14 @@ import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -38,7 +40,6 @@ sealed interface LauncherRepositoryState {
 
     data class Ready(
         val launcher: LauncherState,
-        val mutationError: AppError? = null,
     ) : LauncherRepositoryState
 
     data class InitializationError(val error: AppError) : LauncherRepositoryState
@@ -74,9 +75,29 @@ class LauncherRepository internal constructor(
     init {
         installedAppsDataSource.observeInstalledApps()
             .distinctUntilChanged()
+            .catch { cause ->
+                cause.rethrowIfCancellation()
+                mutableState.value = LauncherRepositoryState.InitializationError(
+                    cause.toAppError(
+                        kind = AppErrorKind.INSTALLED_APPS_LOAD_FAILED,
+                        operation = AppOperation.LOAD_INSTALLED_APPS,
+                    ),
+                )
+            }
             .onEach { apps ->
                 installedApps.value = apps
-                if (initialized) storage.replaceInstalledApps(apps)
+                if (initialized) {
+                    try {
+                        storage.replaceInstalledApps(apps)
+                    } catch (cause: StorageAccessException) {
+                        mutableState.value = LauncherRepositoryState.InitializationError(
+                            cause.toAppError(
+                                kind = AppErrorKind.STORAGE_WRITE_FAILED,
+                                operation = AppOperation.LOAD_INSTALLED_APPS,
+                            ),
+                        )
+                    }
+                }
             }
             .launchIn(scope)
         retryInitialization()
@@ -95,11 +116,9 @@ class LauncherRepository internal constructor(
                 observeStorage()
             } catch (cause: StorageAccessException) {
                 mutableState.value = LauncherRepositoryState.InitializationError(
-                    AppError(
+                    cause.toAppError(
                         kind = AppErrorKind.STORAGE_INITIALIZATION_FAILED,
                         operation = AppOperation.INITIALIZE_STORAGE,
-                        recovery = ErrorRecovery.NONE,
-                        cause = cause.cause ?: cause,
                     ),
                 )
             } finally {
@@ -138,6 +157,14 @@ class LauncherRepository internal constructor(
     private fun observeStorage() {
         combine(storage.snapshots, installedApps) { snapshot, currentInstalledApps ->
             toLauncherState(snapshot, currentInstalledApps.ifEmpty { snapshot.installedApps })
+        }.catch { cause ->
+            cause.rethrowIfCancellation()
+            mutableState.value = LauncherRepositoryState.InitializationError(
+                cause.toAppError(
+                    kind = AppErrorKind.STORAGE_READ_FAILED,
+                    operation = AppOperation.READ_STORAGE,
+                ),
+            )
         }.onEach { launcherState ->
             mutableState.value = LauncherRepositoryState.Ready(launcherState)
         }.launchIn(scope)
@@ -185,20 +212,31 @@ class LauncherRepository internal constructor(
         mutation: suspend () -> Unit,
     ): RepositoryMutationOutcome = try {
         mutation()
-        val ready = mutableState.value as? LauncherRepositoryState.Ready
-        if (ready?.mutationError != null) mutableState.value = ready.copy(mutationError = null)
         RepositoryMutationOutcome.Completed
     } catch (cause: StorageAccessException) {
-        val error = AppError(
-            kind = AppErrorKind.STORAGE_WRITE_FAILED,
-            operation = operation,
-            recovery = ErrorRecovery.NONE,
-            cause = cause.cause ?: cause,
+        RepositoryMutationOutcome.Failed(
+            cause.toAppError(
+                kind = AppErrorKind.STORAGE_WRITE_FAILED,
+                operation = operation,
+            ),
         )
-        val ready = mutableState.value as? LauncherRepositoryState.Ready
-        if (ready != null) mutableState.value = ready.copy(mutationError = error)
-        RepositoryMutationOutcome.Failed(error)
     }
+}
+
+private fun Throwable.rethrowIfCancellation() {
+    if (this is CancellationException) throw this
+}
+
+private fun Throwable.toAppError(
+    kind: AppErrorKind,
+    operation: AppOperation,
+): AppError {
+    return AppError(
+        kind = kind,
+        operation = operation,
+        recovery = ErrorRecovery.NONE,
+        cause = (this as? StorageAccessException)?.cause ?: this,
+    )
 }
 
 private val StoredShortcut.defaultLabel: String

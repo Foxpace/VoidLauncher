@@ -54,6 +54,9 @@
     <string name="error_app_unavailable">This app is no longer available.</string>
     <string name="error_destination_unavailable">No app can open this action.</string>
     <string name="error_action_blocked">Android blocked this action.</string>
+    <string name="error_unexpected">Something went wrong while completing that action.</string>
     <string name="error_storage_initialization_failed">VoidLauncher could not load its saved launcher data.</string>
+    <string name="error_storage_read_failed">VoidLauncher could not refresh its saved launcher data.</string>
     <string name="error_storage_write_failed">VoidLauncher could not save that change.</string>
+    <string name="error_installed_apps_load_failed">VoidLauncher could not refresh the installed apps.</string>
 </resources>

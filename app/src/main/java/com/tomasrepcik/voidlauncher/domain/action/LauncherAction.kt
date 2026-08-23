@@ -19,11 +19,9 @@ sealed interface LauncherActionOutcome {
 
     data class Recovered(
         val recovery: ErrorRecovery,
-        val message: String? = null,
     ) : LauncherActionOutcome
 
     data class Failed(
         val error: AppError,
-        val message: String,
     ) : LauncherActionOutcome
 }
