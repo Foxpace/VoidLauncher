@@ -37,6 +37,7 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:enableOnBackInvokedCallback="true"
+            android:theme="@style/Theme.VoidLauncher.Splash"
             tools:targetApi="tiramisu">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

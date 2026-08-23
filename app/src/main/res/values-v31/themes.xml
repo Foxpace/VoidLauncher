@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.VoidLauncher.Splash" parent="Theme.VoidLauncher">
+        <item name="android:windowSplashScreenBackground">@color/theme_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+    </style>
+</resources>
