@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
@@ -78,11 +79,7 @@ fun CustomizationScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
-                        Text(
-                            text = stringResource(R.string.bottom_shortcuts),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
+                        SettingsSectionTitle(stringResource(R.string.bottom_shortcuts))
                     }
 
                     items(
@@ -96,11 +93,7 @@ fun CustomizationScreen(
                     }
 
                     item {
-                        Text(
-                            text = stringResource(R.string.app_schedules),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
+                        SettingsSectionTitle(stringResource(R.string.app_schedules))
                     }
 
                     item {
@@ -142,12 +135,7 @@ fun CustomizationScreen(
                     }
 
                     item {
-                        Text(
-                            text = stringResource(R.string.help),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
+                        SettingsSectionTitle(stringResource(R.string.help))
                     }
 
                     item {
@@ -231,11 +219,7 @@ fun ShortcutPickerScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     item {
-                        Text(
-                            text = stringResource(R.string.system_shortcuts),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
+                        SettingsSectionTitle(stringResource(R.string.system_shortcuts))
                     }
 
                     item {
@@ -253,11 +237,7 @@ fun ShortcutPickerScreen(
                     }
 
                     item {
-                        Text(
-                            text = stringResource(R.string.apps),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
+                        SettingsSectionTitle(stringResource(R.string.apps))
                     }
 
                     item {
@@ -288,6 +268,17 @@ fun ShortcutPickerScreen(
             }
         }
     }
+}
+
+@Composable
+internal fun SettingsSectionTitle(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        fontWeight = FontWeight.SemiBold,
+    )
 }
 
 @Composable

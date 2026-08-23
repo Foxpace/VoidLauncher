@@ -42,12 +42,7 @@ internal fun AboutSettings(
 ) {
     val appVersion = rememberAppVersion()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = stringResource(R.string.about),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+        SettingsSectionTitle(stringResource(R.string.about))
         ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
