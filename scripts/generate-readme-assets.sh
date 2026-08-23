@@ -90,7 +90,6 @@ publish_screenshot() {
 }
 
 publish_screenshot "readmeHome" "home"
-publish_screenshot "homeEmpty" "home-empty"
 publish_screenshot "readmeDrawer" "drawer"
 publish_screenshot "readmeSchedule" "schedule"
 publish_screenshot "readmeCustomize" "customize"

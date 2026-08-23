@@ -132,28 +132,6 @@ fun readmeHome() {
 
 @PreviewTest
 @Preview(
-    name = "Home Empty",
-    widthDp = README_WIDTH_DP,
-    heightDp = README_HEIGHT_DP,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    showBackground = true,
-)
-@Composable
-fun homeEmpty() {
-    ReadmePreview {
-        HomeScreen(
-            state = HomeUiState(
-                homeApps = emptyList(),
-                shortcuts = sampleShortcuts,
-                isLoading = false,
-            ),
-            actions = homeActions,
-        )
-    }
-}
-
-@PreviewTest
-@Preview(
     name = "README Drawer",
     widthDp = README_WIDTH_DP,
     heightDp = README_HEIGHT_DP,
