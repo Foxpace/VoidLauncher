@@ -32,11 +32,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.EmojiObjects
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
@@ -174,6 +170,7 @@ private fun HomeContent(
         HomeApps(state, actions, controller)
         HomeShortcuts(state.shortcuts, actions.onShortcutClicked)
         HomeSearch(state, actions, searchFocusRequester)
+        KeyboardSearchActions(state.query, actions)
     }
 }
 
@@ -188,6 +185,14 @@ private fun BoxScope.HomeApps(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
+                .padding(top = 104.dp),
+        )
+        state.homeApps.isEmpty() && state.isScheduleActive -> Text(
+            text = stringResource(R.string.no_apps_scheduled_now),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier
+                .align(Alignment.TopStart)
                 .padding(top = 104.dp),
         )
         state.homeApps.isEmpty() -> FilledTonalButton(
@@ -316,7 +321,7 @@ private data class SearchOverlayState(
     val hintMessage: String?,
 )
 
-private data class SearchOverlayActions(
+internal data class SearchOverlayActions(
     val onSuggestionClicked: (InstalledApp) -> Unit,
     val onPlayStoreSearch: () -> Unit,
     val onMapsSearch: () -> Unit,
@@ -468,47 +473,7 @@ private fun SearchOverlay(
         shadowElevation = 8.dp,
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                IconButton(
-                    onClick = actions.onPlayStoreSearch,
-                    modifier = Modifier.testTag("home_play_store_button"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Storefront,
-                        contentDescription = stringResource(R.string.open_google_play),
-                    )
-                }
-                IconButton(
-                    onClick = actions.onMapsSearch,
-                    modifier = Modifier.testTag("home_maps_button"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Map,
-                        contentDescription = stringResource(R.string.open_google_maps),
-                    )
-                }
-                IconButton(
-                    onClick = actions.onBrowserSearch,
-                    modifier = Modifier.testTag("home_browser_button"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Language,
-                        contentDescription = stringResource(R.string.open_browser_search),
-                    )
-                }
-                IconButton(
-                    onClick = actions.onAppHint,
-                    modifier = Modifier.testTag("home_hint_button"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.EmojiObjects,
-                        contentDescription = stringResource(R.string.show_app_hint),
-                    )
-                }
-            }
+            SearchActionButtons(actions = actions, testTagPrefix = "home")
 
             state.hintMessage?.let { message ->
                 Text(

@@ -10,6 +10,7 @@ activityCompose = "1.13.0"
 lifecycle = "2.10.0"
 navigation3 = "1.0.1"
 room = "2.8.4"
+screenshot = "0.0.1-alpha15"
 ksp = "2.3.6"
 coroutines = "1.10.2"
 truth = "1.4.5"
@@ -41,6 +42,7 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+screenshot-validation-api = { group = "com.android.tools.screenshot", name = "screenshot-validation-api", version.ref = "screenshot" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -48,3 +50,4 @@ detekt = { id = "dev.detekt", version.ref = "detekt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+screenshot = { id = "com.android.compose.screenshot", version.ref = "screenshot" }

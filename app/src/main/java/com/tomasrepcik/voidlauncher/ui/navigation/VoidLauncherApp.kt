@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,7 +39,13 @@ import com.tomasrepcik.voidlauncher.ui.drawer.DrawerViewModel
 import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeActions
 import com.tomasrepcik.voidlauncher.ui.home.HomeViewModel
+import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorScreen
+import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorViewModel
+import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEffect
+import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListScreen
+import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -53,6 +60,12 @@ data object CustomizationRoute : NavKey
 
 @Serializable
 data class ShortcutPickerRoute(val slot: ShortcutSlot) : NavKey
+
+@Serializable
+data object ScheduleListRoute : NavKey
+
+@Serializable
+data class ScheduleEditorRoute(val scheduleId: String? = null) : NavKey
 
 @Composable
 fun VoidLauncherApp() {
@@ -181,6 +194,50 @@ fun VoidLauncherApp() {
                         state = state,
                         onBack = backStack::popIfNotRoot,
                         onEditShortcut = { slot -> backStack.pushSingleTop(ShortcutPickerRoute(slot)) },
+                        onOpenSchedules = { backStack.pushSingleTop(ScheduleListRoute) },
+                    )
+                }
+
+                entry<ScheduleListRoute> {
+                    val viewModel: ScheduleListViewModel = viewModel(
+                        factory = ScheduleListViewModel.provideFactory(appContainer.launcherRepository)
+                    )
+                    val state by viewModel.uiState.collectAsStateWithLifecycle()
+                    CollectScheduleEffects(
+                        effects = viewModel.effects,
+                        context = context,
+                        snackbarHostState = snackbarHostState,
+                        messageMapper = errorMessageMapper,
+                    )
+                    ScheduleListScreen(
+                        state = state,
+                        onBack = backStack::popIfNotRoot,
+                        onAdd = { backStack.pushSingleTop(ScheduleEditorRoute()) },
+                        onEdit = { id -> backStack.pushSingleTop(ScheduleEditorRoute(id)) },
+                        onIntent = viewModel::onIntent,
+                    )
+                }
+
+                entry<ScheduleEditorRoute> { route ->
+                    val viewModel: ScheduleEditorViewModel = viewModel(
+                        factory = ScheduleEditorViewModel.provideFactory(
+                            appContainer.launcherRepository,
+                            route.scheduleId,
+                            appContainer.installedAppSearch,
+                        )
+                    )
+                    val state by viewModel.uiState.collectAsStateWithLifecycle()
+                    CollectScheduleEffects(
+                        effects = viewModel.effects,
+                        context = context,
+                        snackbarHostState = snackbarHostState,
+                        messageMapper = errorMessageMapper,
+                        onSaved = backStack::popIfNotRoot,
+                    )
+                    ScheduleEditorScreen(
+                        state = state,
+                        onBack = backStack::popIfNotRoot,
+                        onIntent = viewModel::onIntent,
                     )
                 }
 
@@ -243,6 +300,26 @@ fun VoidLauncherApp() {
             state = repositoryState,
             onRetry = appContainer.launcherRepository::retryInitialization,
         )
+    }
+}
+
+@Composable
+private fun CollectScheduleEffects(
+    effects: Flow<ScheduleEffect>,
+    context: Context,
+    snackbarHostState: SnackbarHostState,
+    messageMapper: AppErrorMessageMapper,
+    onSaved: () -> Unit = {},
+) {
+    LaunchedEffect(effects) {
+        effects.collect { effect ->
+            when (effect) {
+                ScheduleEffect.Saved -> onSaved()
+                is ScheduleEffect.Failed -> snackbarHostState.showSnackbar(
+                    messageMapper.message(context, effect.error),
+                )
+            }
+        }
     }
 }
 

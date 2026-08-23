@@ -177,6 +177,10 @@ private class HomeRobot(
         composeRule.onNodeWithTag("home_maps_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_browser_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_hint_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_keyboard_play_store_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_keyboard_maps_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_keyboard_browser_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("home_keyboard_hint_button").assertIsDisplayed()
     }
 
     fun enterSearch(text: String) {

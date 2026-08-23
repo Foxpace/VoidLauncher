@@ -5,6 +5,7 @@ import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
+import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.installedApp
 import com.tomasrepcik.voidlauncher.testing.launcherRepository
@@ -14,12 +15,15 @@ import com.tomasrepcik.voidlauncher.testing.startCollecting
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import java.time.DayOfWeek
+import java.time.LocalDateTime
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -126,5 +130,41 @@ class HomeViewModelTest {
         val labels = launcher.pinnedHomeApps.map { it.label }
         assertThat(labels)
             .containsExactly("Spotify", "Lens").inOrder()
+    }
+
+    @Test
+    fun timeChangesResolveScheduledAppsIntoHomeState() = runTest(mainDispatcherRule.dispatcher) {
+        val mail = installedApp("Mail")
+        val music = installedApp("Music")
+        val schedule = AppSchedule(
+            id = "work",
+            name = "Work",
+            days = setOf(DayOfWeek.MONDAY),
+            startMinute = 9 * 60,
+            endMinute = 17 * 60,
+            appKeys = setOf(mail.key),
+        )
+        val repository = launcherRepository(
+            installedApps = listOf(mail, music),
+            pinnedApps = listOf(music),
+            schedules = listOf(schedule),
+        )
+        val currentTime = MutableStateFlow(LocalDateTime.of(2026, 8, 24, 10, 0))
+        advanceUntilIdle()
+        val subject = HomeViewModel(
+            repository = repository,
+            installedAppSearch = InstalledAppSearch(),
+            currentTime = currentTime,
+        )
+        startCollecting(subject.uiState)
+        advanceUntilIdle()
+
+        assertThat(subject.uiState.value.homeApps).containsExactly(mail)
+        assertThat(subject.uiState.value.isScheduleActive).isTrue()
+
+        currentTime.value = LocalDateTime.of(2026, 8, 24, 18, 0)
+        advanceUntilIdle()
+        assertThat(subject.uiState.value.homeApps).containsExactly(music)
+        assertThat(subject.uiState.value.isScheduleActive).isFalse()
     }
 }

@@ -12,6 +12,8 @@ import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
+import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
+import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,7 @@ data class LauncherState(
     val pinnedAppKeys: Set<AppKey>,
     val bottomShortcuts: List<ResolvedShortcut>,
     val preferences: LauncherPreferences,
+    val schedules: List<AppSchedule>,
 )
 
 sealed interface LauncherRepositoryState {
@@ -127,31 +130,41 @@ class LauncherRepository internal constructor(
         }
     }
 
-    suspend fun saveHomeApps(apps: List<AppKey>) = mutate(AppOperation.SAVE_HOME_APPS) {
+    suspend fun saveHomeApps(apps: List<AppKey>) = performMutation(AppOperation.SAVE_HOME_APPS) {
         storage.saveHomeApps(apps)
     }
 
-    suspend fun addHomeApp(appKey: AppKey) = mutate(AppOperation.ADD_HOME_APP) {
+    suspend fun addHomeApp(appKey: AppKey) = performMutation(AppOperation.ADD_HOME_APP) {
         storage.addHomeApp(appKey)
     }
 
-    suspend fun removeHomeApp(appKey: AppKey) = mutate(AppOperation.REMOVE_HOME_APP) {
+    suspend fun removeHomeApp(appKey: AppKey) = performMutation(AppOperation.REMOVE_HOME_APP) {
         storage.removeHomeApp(appKey)
     }
 
-    suspend fun reorderHomeApps(fromIndex: Int, toIndex: Int) = mutate(AppOperation.REORDER_HOME_APPS) {
+    suspend fun reorderHomeApps(fromIndex: Int, toIndex: Int) = performMutation(AppOperation.REORDER_HOME_APPS) {
         storage.reorderHomeApps(fromIndex, toIndex)
     }
 
-    suspend fun renameHomeApp(appKey: AppKey, newLabel: String?) = mutate(AppOperation.RENAME_HOME_APP) {
-        storage.renameHomeApp(appKey, newLabel)
-    }
+    suspend fun renameHomeApp(appKey: AppKey, newLabel: String?) =
+        performMutation(AppOperation.RENAME_HOME_APP) {
+            storage.renameHomeApp(appKey, newLabel)
+        }
 
     suspend fun saveShortcut(slot: ShortcutSlot, selection: ShortcutSelection) =
-        mutate(AppOperation.SAVE_SHORTCUT) { storage.saveShortcut(slot, selection) }
+        performMutation(AppOperation.SAVE_SHORTCUT) { storage.saveShortcut(slot, selection) }
 
-    suspend fun setHomeAppCount(count: Int) = mutate(AppOperation.UPDATE_PREFERENCES) {
+    suspend fun setHomeAppCount(count: Int) = performMutation(AppOperation.UPDATE_PREFERENCES) {
         storage.setHomeAppCount(count)
+    }
+
+    suspend fun mutateSchedule(mutation: ScheduleMutation) = performMutation(
+        operation = when (mutation) {
+            is ScheduleMutation.Save -> AppOperation.SAVE_SCHEDULE
+            is ScheduleMutation.Delete -> AppOperation.DELETE_SCHEDULE
+        },
+    ) {
+        storage.mutateSchedule(mutation)
     }
 
     private fun observeStorage() {
@@ -204,23 +217,24 @@ class LauncherRepository internal constructor(
             pinnedAppKeys = snapshot.pinnedApps.map(StoredPinnedApp::key).toSet(),
             bottomShortcuts = shortcuts,
             preferences = snapshot.preferences,
+            schedules = snapshot.schedules,
         )
     }
+}
 
-    private suspend fun mutate(
-        operation: AppOperation,
-        mutation: suspend () -> Unit,
-    ): RepositoryMutationOutcome = try {
-        mutation()
-        RepositoryMutationOutcome.Completed
-    } catch (cause: StorageAccessException) {
-        RepositoryMutationOutcome.Failed(
-            cause.toAppError(
-                kind = AppErrorKind.STORAGE_WRITE_FAILED,
-                operation = operation,
-            ),
-        )
-    }
+private suspend fun performMutation(
+    operation: AppOperation,
+    mutation: suspend () -> Unit,
+): RepositoryMutationOutcome = try {
+    mutation()
+    RepositoryMutationOutcome.Completed
+} catch (cause: StorageAccessException) {
+    RepositoryMutationOutcome.Failed(
+        cause.toAppError(
+            kind = AppErrorKind.STORAGE_WRITE_FAILED,
+            operation = operation,
+        ),
+    )
 }
 
 private fun Throwable.rethrowIfCancellation() {

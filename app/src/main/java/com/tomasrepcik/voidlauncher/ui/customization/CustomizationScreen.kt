@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +47,7 @@ fun CustomizationScreen(
     state: CustomizationUiState,
     onBack: () -> Unit,
     onEditShortcut: (ShortcutSlot) -> Unit,
+    onOpenSchedules: () -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
         SwipeNavigationContainer(
@@ -94,6 +96,42 @@ fun CustomizationScreen(
                         shortcut = shortcut,
                         onEdit = { onEditShortcut(shortcut.slot) },
                     )
+                }
+
+                item {
+                    Text(
+                        text = stringResource(R.string.app_schedules),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+
+                item {
+                    ElevatedCard(onClick = onOpenSchedules) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Schedule,
+                                contentDescription = null,
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.plan_visible_apps),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                Text(
+                                    text = stringResource(R.string.plan_visible_apps_summary),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

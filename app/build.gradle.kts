@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.screenshot)
 }
 
 detekt {
@@ -57,6 +58,7 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
 }
 
 dependencies {
@@ -80,6 +82,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.truth)
+    screenshotTestImplementation(libs.screenshot.validation.api)
+    screenshotTestImplementation(libs.androidx.compose.ui.tooling)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

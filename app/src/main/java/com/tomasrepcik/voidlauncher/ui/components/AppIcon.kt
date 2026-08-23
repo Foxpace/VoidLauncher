@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -32,11 +33,20 @@ private const val ICON_BITMAP_SIZE_PX = 144
 private const val ICON_CACHE_BYTES = 12 * 1024 * 1024
 private val appIconLoader = AppIconLoader()
 
+internal typealias AppIconContent = @Composable (InstalledApp, Modifier) -> Unit
+
+internal val LocalAppIconContent = staticCompositionLocalOf<AppIconContent?> { null }
+
 @Composable
 fun AppIcon(
     app: InstalledApp,
     modifier: Modifier = Modifier,
 ) {
+    LocalAppIconContent.current?.let { content ->
+        content(app, modifier)
+        return
+    }
+
     val painter = rememberAppIconPainter(app = app, context = LocalContext.current)
     if (painter != null) {
         Image(

@@ -2,6 +2,7 @@ package com.tomasrepcik.voidlauncher.data.repository
 
 import android.database.sqlite.SQLiteException
 import androidx.room.withTransaction
+import com.tomasrepcik.voidlauncher.data.local.AppScheduleEntity
 import com.tomasrepcik.voidlauncher.data.local.InstalledAppEntity
 import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.local.LauncherPreferencesEntity
@@ -15,6 +16,10 @@ import com.tomasrepcik.voidlauncher.data.model.MAX_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.MIN_HOME_APP_COUNT
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
+import com.tomasrepcik.voidlauncher.domain.schedule.MINUTES_PER_DAY
+import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
+import java.time.DayOfWeek
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
@@ -44,6 +49,7 @@ internal data class LauncherStorageSnapshot(
     val pinnedApps: List<StoredPinnedApp> = emptyList(),
     val shortcuts: List<StoredShortcut> = emptyList(),
     val preferences: LauncherPreferences = LauncherPreferences(),
+    val schedules: List<AppSchedule> = emptyList(),
 )
 
 internal class StorageAccessException(cause: Throwable) : RuntimeException(cause)
@@ -60,6 +66,7 @@ internal interface LauncherStorage {
     suspend fun renameHomeApp(appKey: AppKey, newLabel: String?)
     suspend fun saveShortcut(slot: ShortcutSlot, selection: ShortcutSelection)
     suspend fun setHomeAppCount(count: Int)
+    suspend fun mutateSchedule(mutation: ScheduleMutation)
 }
 
 internal class RoomLauncherStorage(
@@ -69,13 +76,15 @@ internal class RoomLauncherStorage(
     private val shortcutDao = database.shortcutDao()
     private val preferencesDao = database.preferencesDao()
     private val installedAppDao = database.installedAppDao()
+    private val scheduleDao = database.appScheduleDao()
 
     override val snapshots: Flow<LauncherStorageSnapshot> = combine(
         installedAppDao.observeAll(),
         pinnedAppDao.observeSection(HOME_SECTION),
         shortcutDao.observeAll(),
         preferencesDao.observe(),
-    ) { installed, pinned, shortcuts, preferences ->
+        scheduleDao.observeAll(),
+    ) { installed, pinned, shortcuts, preferences, schedules ->
         LauncherStorageSnapshot(
             installedApps = installed.map(InstalledAppEntity::toModel),
             pinnedApps = pinned.map(PinnedAppEntity::toStored),
@@ -83,6 +92,7 @@ internal class RoomLauncherStorage(
             preferences = LauncherPreferences(
                 homeAppCount = preferences?.homeAppCount ?: DEFAULT_HOME_APP_COUNT,
             ),
+            schedules = schedules.map(AppScheduleEntity::toModel),
         )
     }.catch { cause ->
         throw cause.asStorageAccessException()
@@ -108,7 +118,9 @@ internal class RoomLauncherStorage(
     }
 
     override suspend fun saveHomeApps(apps: List<AppKey>) = storageCall {
-        replaceHomeApps(apps.distinct().mapIndexed(::pinnedAppEntity))
+        database.withTransaction {
+            writeHomeApps(apps.distinct().mapIndexed(::pinnedAppEntity))
+        }
     }
 
     override suspend fun addHomeApp(appKey: AppKey) = storageCall {
@@ -162,8 +174,11 @@ internal class RoomLauncherStorage(
         )
     }
 
-    private suspend fun replaceHomeApps(entities: List<PinnedAppEntity>) {
-        database.withTransaction { writeHomeApps(entities) }
+    override suspend fun mutateSchedule(mutation: ScheduleMutation) = storageCall {
+        when (mutation) {
+            is ScheduleMutation.Save -> scheduleDao.upsert(mutation.schedule.toEntity())
+            is ScheduleMutation.Delete -> scheduleDao.delete(mutation.id)
+        }
     }
 
     private suspend fun writeHomeApps(entities: List<PinnedAppEntity>) {
@@ -244,6 +259,18 @@ internal class InMemoryLauncherStorage(
         )
     }
 
+    override suspend fun mutateSchedule(mutation: ScheduleMutation) = mutate { snapshot ->
+        when (mutation) {
+            is ScheduleMutation.Save -> snapshot.copy(
+                schedules = (snapshot.schedules.filterNot { it.id == mutation.schedule.id } +
+                    mutation.schedule).sortedBy { it.name.lowercase() },
+            )
+            is ScheduleMutation.Delete -> snapshot.copy(
+                schedules = snapshot.schedules.filterNot { it.id == mutation.id },
+            )
+        }
+    }
+
     private fun mutate(transform: (LauncherStorageSnapshot) -> LauncherStorageSnapshot) {
         if (writeFailuresRemaining > 0) {
             writeFailuresRemaining--
@@ -320,3 +347,34 @@ private fun InstalledAppEntity.toModel() = InstalledApp(
     label = label,
     sortLabel = sortLabel,
 )
+
+private fun AppSchedule.toEntity() = AppScheduleEntity(
+    id = id,
+    name = name,
+    days = days.joinToString(",", transform = DayOfWeek::name),
+    startMinute = startMinute.coerceIn(0, MINUTES_PER_DAY - 1),
+    endMinute = endMinute.coerceIn(0, MINUTES_PER_DAY - 1),
+    appKeys = appKeys.joinToString("\n") { key ->
+        "${key.packageName}\t${key.activityName}"
+    },
+    enabled = enabled,
+)
+
+private fun AppScheduleEntity.toModel(): AppSchedule {
+    val storedDays = days.split(',')
+        .mapNotNull { value -> DayOfWeek.entries.firstOrNull { it.name == value } }
+        .toSet()
+    val storedAppKeys = appKeys.lineSequence().mapNotNull { value ->
+        val parts = value.split('\t', limit = 2)
+        if (parts.size == 2) AppKey(parts[0], parts[1]) else null
+    }.toSet()
+    return AppSchedule(
+        id = id,
+        name = name,
+        days = storedDays,
+        startMinute = startMinute.coerceIn(0, MINUTES_PER_DAY - 1),
+        endMinute = endMinute.coerceIn(0, MINUTES_PER_DAY - 1),
+        appKeys = storedAppKeys,
+        enabled = enabled,
+    )
+}

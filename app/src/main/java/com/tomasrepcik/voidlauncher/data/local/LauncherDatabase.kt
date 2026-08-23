@@ -45,6 +45,18 @@ data class InstalledAppEntity(
     val sortLabel: String,
 )
 
+@Entity(tableName = "app_schedules")
+data class AppScheduleEntity(
+    @PrimaryKey
+    val id: String,
+    val name: String,
+    val days: String,
+    val startMinute: Int,
+    val endMinute: Int,
+    val appKeys: String,
+    val enabled: Boolean,
+)
+
 @Dao
 interface PinnedAppDao {
     @Query("SELECT * FROM pinned_apps WHERE section = :section ORDER BY position ASC")
@@ -102,14 +114,27 @@ interface InstalledAppDao {
     suspend fun deleteAll()
 }
 
+@Dao
+interface AppScheduleDao {
+    @Query("SELECT * FROM app_schedules ORDER BY name COLLATE NOCASE ASC")
+    fun observeAll(): Flow<List<AppScheduleEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: AppScheduleEntity)
+
+    @Query("DELETE FROM app_schedules WHERE id = :id")
+    suspend fun delete(id: String)
+}
+
 @Database(
     entities = [
         PinnedAppEntity::class,
         ShortcutEntity::class,
         LauncherPreferencesEntity::class,
         InstalledAppEntity::class,
+        AppScheduleEntity::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -117,4 +142,5 @@ abstract class LauncherDatabase : RoomDatabase() {
     abstract fun shortcutDao(): ShortcutDao
     abstract fun preferencesDao(): PreferencesDao
     abstract fun installedAppDao(): InstalledAppDao
+    abstract fun appScheduleDao(): AppScheduleDao
 }

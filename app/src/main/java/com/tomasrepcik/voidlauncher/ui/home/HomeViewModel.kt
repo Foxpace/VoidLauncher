@@ -11,13 +11,21 @@ import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
+import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
+import java.time.LocalDateTime
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
@@ -26,12 +34,15 @@ data class HomeUiState(
     val shortcuts: List<ResolvedShortcut> = emptyList(),
     val hintMessage: String? = null,
     val searchSuggestions: List<InstalledApp> = emptyList(),
+    val isScheduleActive: Boolean = false,
     val isLoading: Boolean = true,
 )
 
 class HomeViewModel(
     private val repository: LauncherRepository,
     private val installedAppSearch: InstalledAppSearch,
+    scheduleResolver: AppScheduleResolver = AppScheduleResolver(),
+    currentTime: Flow<LocalDateTime> = flowOf(LocalDateTime.now()),
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -46,15 +57,23 @@ class HomeViewModel(
         query,
         hintMessage,
         repository.state,
-    ) { currentQuery, currentHint, repositoryState ->
+        currentTime,
+    ) { currentQuery, currentHint, repositoryState, now ->
         val launcher = (repositoryState as? LauncherRepositoryState.Ready)?.launcher
             ?: return@combine HomeUiState(query = currentQuery, isLoading = true)
+        val scheduledApps = scheduleResolver.visibleApps(
+            defaultApps = launcher.pinnedHomeApps,
+            installedApps = launcher.installedApps,
+            schedules = launcher.schedules,
+            at = now,
+        )
         HomeUiState(
             query = currentQuery,
-            homeApps = launcher.pinnedHomeApps,
+            homeApps = scheduledApps.apps,
             shortcuts = launcher.bottomShortcuts.sortedBy { it.slot.ordinal },
             hintMessage = currentHint,
             searchSuggestions = installedAppSearch.suggestions(currentQuery, launcher.installedApps),
+            isScheduleActive = scheduledApps.isScheduleActive,
             isLoading = false,
         )
     }.stateIn(
@@ -123,8 +142,21 @@ class HomeViewModel(
             installedAppSearch: InstalledAppSearch,
         ) = viewModelFactory {
             initializer {
-                HomeViewModel(repository, installedAppSearch)
+                HomeViewModel(
+                    repository = repository,
+                    installedAppSearch = installedAppSearch,
+                    currentTime = minuteTicks(),
+                )
             }
         }
+    }
+}
+
+private fun minuteTicks(): Flow<LocalDateTime> = flow {
+    while (currentCoroutineContext().isActive) {
+        val now = LocalDateTime.now()
+        emit(now)
+        val millisUntilNextMinute = (60 - now.second) * 1_000L - now.nano / 1_000_000L
+        delay(millisUntilNextMinute.coerceAtLeast(1L))
     }
 }

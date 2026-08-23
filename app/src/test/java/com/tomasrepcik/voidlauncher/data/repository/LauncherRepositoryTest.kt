@@ -4,6 +4,8 @@ import android.database.sqlite.SQLiteException
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
+import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
+import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
 import com.tomasrepcik.voidlauncher.testing.PlannedRepositoryFailures
 import com.tomasrepcik.voidlauncher.testing.installedApp
 import com.tomasrepcik.voidlauncher.testing.launcherRepository
@@ -12,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.time.DayOfWeek
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LauncherRepositoryTest {
@@ -73,5 +76,28 @@ class LauncherRepositoryTest {
         assertThat(launcher.pinnedHomeApps.map { it.label })
             .containsExactly("Navigation", "Camera").inOrder()
         assertThat(launcher.preferences.homeAppCount).isEqualTo(10)
+    }
+
+    @Test
+    fun scheduleMutationsUpdateObservableLauncherState() = runTest {
+        val mail = installedApp("Mail")
+        val repository = launcherRepository(installedApps = listOf(mail))
+        advanceUntilIdle()
+        val schedule = AppSchedule(
+            id = "work",
+            name = "Work",
+            days = setOf(DayOfWeek.MONDAY),
+            startMinute = 9 * 60,
+            endMinute = 17 * 60,
+            appKeys = setOf(mail.key),
+        )
+
+        repository.mutateSchedule(ScheduleMutation.Save(schedule))
+        advanceUntilIdle()
+        assertThat(repository.readyState().launcher.schedules).containsExactly(schedule)
+
+        repository.mutateSchedule(ScheduleMutation.Delete(schedule.id))
+        advanceUntilIdle()
+        assertThat(repository.readyState().launcher.schedules).isEmpty()
     }
 }

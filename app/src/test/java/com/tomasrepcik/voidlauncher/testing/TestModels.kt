@@ -12,6 +12,7 @@ import com.tomasrepcik.voidlauncher.data.repository.LauncherStorageSnapshot
 import com.tomasrepcik.voidlauncher.data.repository.StoredPinnedApp
 import com.tomasrepcik.voidlauncher.data.repository.StoredShortcut
 import com.tomasrepcik.voidlauncher.data.source.InstalledAppsDataSource
+import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +57,7 @@ fun TestScope.launcherRepository(
     installedApps: List<InstalledApp> = emptyList(),
     pinnedApps: List<InstalledApp> = emptyList(),
     shortcuts: List<ResolvedShortcut> = emptyList(),
+    schedules: List<AppSchedule> = emptyList(),
     failures: PlannedRepositoryFailures = PlannedRepositoryFailures(),
 ): LauncherRepository {
     val source = TestInstalledAppsDataSource(installedApps)
@@ -64,6 +66,7 @@ fun TestScope.launcherRepository(
             installedApps = installedApps,
             pinnedApps = pinnedApps.map { StoredPinnedApp(it.key) },
             shortcuts = shortcuts.map { StoredShortcut(it.slot, it.selection) },
+            schedules = schedules,
         ),
         initializationFailuresRemaining = failures.initializationCount,
         writeFailuresRemaining = failures.writeCount,

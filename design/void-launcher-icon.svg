@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">VoidLauncher icon</title>
+  <desc id="desc">Four dark app-list rows interrupted by an off-center circular void.</desc>
+  <rect width="512" height="512" rx="112" fill="#F7F7F7"/>
+  <g transform="scale(4.74074074)" fill="#111111">
+    <rect x="21" y="28" width="66" height="12" rx="6"/>
+    <rect x="21" y="43" width="53" height="12" rx="6"/>
+    <rect x="21" y="58" width="66" height="12" rx="6"/>
+    <rect x="21" y="73" width="51" height="12" rx="6"/>
+  </g>
+  <circle cx="317.63" cy="265.48" r="71.11" fill="#F7F7F7"/>
+</svg>

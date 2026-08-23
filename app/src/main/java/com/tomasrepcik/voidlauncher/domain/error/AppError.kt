@@ -35,6 +35,8 @@ enum class AppOperation {
     RENAME_HOME_APP,
     SAVE_SHORTCUT,
     UPDATE_PREFERENCES,
+    SAVE_SCHEDULE,
+    DELETE_SCHEDULE,
 }
 
 enum class ErrorRecovery {
