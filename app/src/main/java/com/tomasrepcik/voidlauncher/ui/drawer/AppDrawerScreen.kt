@@ -11,9 +11,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -62,10 +63,6 @@ fun AppDrawerScreen(
     state: DrawerUiState,
     actions: AppDrawerActions,
 ) {
-    val listState = rememberLazyListState()
-    val alphabetIndex = remember(state.apps) { buildAlphabetIndex(state.apps) }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -77,106 +74,129 @@ fun AppDrawerScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxSize()
-                    .systemBarsPadding()
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .fillMaxSize(),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = actions.onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.all_apps),
-                        style = MaterialTheme.typography.headlineLarge,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 4.dp),
-                    )
-                    IconButton(onClick = actions.onOpenSettings) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = stringResource(R.string.customize_launcher),
-                        )
-                    }
-                }
-
-                LauncherSearchField(
-                    value = state.query,
-                    onValueChange = actions.onQueryChange,
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    placeholderText = stringResource(R.string.filter_apps),
-                    options = LauncherSearchOptions(testTag = "drawer_search_field"),
+                AppDrawerHeader(actions)
+                AppDrawerContent(
+                    state = state,
+                    actions = actions,
+                    modifier = Modifier.weight(1f),
                 )
+            }
+        }
+    }
+}
 
-                if (state.isLoading && state.apps.isEmpty()) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("drawer_loading_indicator"),
-                    )
-                }
+@Composable
+private fun AppDrawerHeader(actions: AppDrawerActions) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(start = 4.dp, end = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = actions.onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                contentDescription = stringResource(R.string.back),
+            )
+        }
+        Text(
+            text = stringResource(R.string.all_apps),
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = actions.onOpenSettings) {
+            Icon(
+                imageVector = Icons.Outlined.Settings,
+                contentDescription = stringResource(R.string.customize_launcher),
+            )
+        }
+    }
+}
 
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .testTag("drawer_list"),
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        itemsIndexed(
-                            items = state.apps,
-                            key = { _, app -> "${app.key.packageName}:${app.key.activityName}" }
-                        ) { index, app ->
-                            val sectionLetter = sectionLetterFor(app)
-                            val previousLetter =
-                                state.apps.getOrNull(index - 1)?.let(::sectionLetterFor)
-                            if (sectionLetter != previousLetter) {
-                                Text(
-                                    text = sectionLetter.toString(),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
-                                )
-                            }
-                            DrawerAppRow(
-                                app = app,
-                                isPinned = app.key in state.pinnedAppKeys,
-                                actions = DrawerAppRowActions(
-                                    onClick = { actions.onAppClicked(app) },
-                                    onAddToHome = { actions.onAddHomeApp(app) },
-                                    onRemoveFromHome = { actions.onRemoveHomeApp(app) },
-                                    onUninstall = { actions.onUninstallApp(app) },
-                                ),
-                            )
-                        }
+@Composable
+private fun AppDrawerContent(
+    state: DrawerUiState,
+    actions: AppDrawerActions,
+    modifier: Modifier = Modifier,
+) {
+    val listState = rememberLazyListState()
+    val alphabetIndex = remember(state.apps) { buildAlphabetIndex(state.apps) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    Column(
+        modifier = modifier
+            .navigationBarsPadding()
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        LauncherSearchField(
+            value = state.query,
+            onValueChange = actions.onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholderText = stringResource(R.string.filter_apps),
+            options = LauncherSearchOptions(testTag = "drawer_search_field"),
+        )
+
+        if (state.isLoading && state.apps.isEmpty()) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("drawer_loading_indicator"),
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .testTag("drawer_list"),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                itemsIndexed(
+                    items = state.apps,
+                    key = { _, app -> "${app.key.packageName}:${app.key.activityName}" }
+                ) { index, app ->
+                    val sectionLetter = sectionLetterFor(app)
+                    val previousLetter = state.apps.getOrNull(index - 1)?.let(::sectionLetterFor)
+                    if (sectionLetter != previousLetter) {
+                        Text(
+                            text = sectionLetter.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                        )
                     }
-
-                    AlphabetRail(
-                        letters = alphabetIndex.keys.toList(),
-                        onLetterClick = { letter ->
-                            alphabetIndex[letter]?.let { position ->
-                                scope.launch {
-                                    listState.animateScrollToItem(position)
-                                }
-                            }
-                        },
+                    DrawerAppRow(
+                        app = app,
+                        isPinned = app.key in state.pinnedAppKeys,
+                        actions = DrawerAppRowActions(
+                            onClick = { actions.onAppClicked(app) },
+                            onAddToHome = { actions.onAddHomeApp(app) },
+                            onRemoveFromHome = { actions.onRemoveHomeApp(app) },
+                            onUninstall = { actions.onUninstallApp(app) },
+                        ),
                     )
                 }
             }
+
+            AlphabetRail(
+                letters = alphabetIndex.keys.toList(),
+                onLetterClick = { letter ->
+                    alphabetIndex[letter]?.let { position ->
+                        scope.launch {
+                            listState.animateScrollToItem(position)
+                        }
+                    }
+                },
+            )
         }
     }
 }

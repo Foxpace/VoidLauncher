@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,40 +96,40 @@ fun CustomizationScreen(
                     }
 
                     item {
-                        OutlinedButton(
+                        ElevatedCard(
                             onClick = onOpenSchedules,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("open_schedules_button"),
-                            shape = MaterialTheme.shapes.medium,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Schedule,
-                                contentDescription = null,
-                            )
-                            Column(
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 14.dp),
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
                             ) {
-                                Text(
-                                    text = stringResource(R.string.plan_visible_apps),
-                                    style = MaterialTheme.typography.titleMedium,
+                                Icon(
+                                    imageVector = Icons.Outlined.Schedule,
+                                    contentDescription = null,
                                 )
-                                Text(
-                                    text = stringResource(R.string.plan_visible_apps_summary),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.plan_visible_apps),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.plan_visible_apps_summary),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(12.dp),
                                 )
                             }
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                                contentDescription = null,
-                            )
                         }
                     }
                 }

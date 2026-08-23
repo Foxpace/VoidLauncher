@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -65,8 +65,12 @@ fun ScheduleListScreen(
     onEdit: (String) -> Unit,
     onIntent: (ScheduleListIntent) -> Unit,
 ) {
-    ScheduleSurface(onBack) {
-        item { ScheduleHeader(stringResource(R.string.app_schedules), onBack, onAdd) }
+    ScheduleSurface(
+        onBack = onBack,
+        topContent = {
+            ScheduleHeader(stringResource(R.string.app_schedules), onBack, onAdd)
+        },
+    ) {
         if (state.isLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         if (!state.isLoading && state.schedules.isEmpty()) {
             item {
@@ -126,6 +130,14 @@ fun ScheduleEditorScreen(
 
     ScheduleSurface(
         onBack = onBack,
+        topContent = {
+            ScheduleHeader(
+                title = stringResource(
+                    if (state.id == null) R.string.new_schedule else R.string.edit_schedule
+                ),
+                onBack = onBack,
+            )
+        },
         bottomContent = {
             Surface(tonalElevation = 3.dp) {
                 Button(
@@ -142,14 +154,6 @@ fun ScheduleEditorScreen(
             }
         },
     ) {
-        item {
-            ScheduleHeader(
-                title = stringResource(
-                    if (state.id == null) R.string.new_schedule else R.string.edit_schedule
-                ),
-                onBack = onBack,
-            )
-        }
         if (state.isLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         if (state.id != null) {
             item {
@@ -263,6 +267,12 @@ fun ScheduleAppPickerScreen(
 ) {
     ScheduleSurface(
         onBack = onBack,
+        topContent = {
+            ScheduleHeader(
+                title = stringResource(R.string.choose_schedule_apps),
+                onBack = onBack,
+            )
+        },
         bottomContent = {
             Surface(tonalElevation = 3.dp) {
                 Button(
@@ -278,12 +288,6 @@ fun ScheduleAppPickerScreen(
             }
         },
     ) {
-        item {
-            ScheduleHeader(
-                title = stringResource(R.string.choose_schedule_apps),
-                onBack = onBack,
-            )
-        }
         if (state.isLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         item {
             Text(
@@ -316,6 +320,7 @@ fun ScheduleAppPickerScreen(
 @Composable
 private fun ScheduleSurface(
     onBack: () -> Unit,
+    topContent: @Composable () -> Unit,
     bottomContent: (@Composable () -> Unit)? = null,
     content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
 ) {
@@ -324,25 +329,28 @@ private fun ScheduleSurface(
             modifier = Modifier.fillMaxSize(),
             actions = SwipeNavigationActions(onClose = onBack),
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .systemBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        bottom = if (bottomContent == null) 12.dp else 88.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    content = content,
-                )
-                bottomContent?.let { fixedContent ->
-                    Box(
+            Column(modifier = Modifier.fillMaxSize()) {
+                topContent()
+                Box(modifier = Modifier.weight(1f)) {
+                    LazyColumn(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth(),
-                    ) {
-                        fixedContent()
+                            .fillMaxSize()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            bottom = if (bottomContent == null) 12.dp else 88.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        content = content,
+                    )
+                    bottomContent?.let { fixedContent ->
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth(),
+                        ) {
+                            fixedContent()
+                        }
                     }
                 }
             }
@@ -357,7 +365,10 @@ private fun ScheduleHeader(
     onAdd: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(start = 4.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
