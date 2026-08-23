@@ -13,6 +13,7 @@ data class HomeActions(
     val onAppClicked: (InstalledApp) -> Unit,
     val onShortcutClicked: (ResolvedShortcut) -> Unit,
     val onOpenDrawer: () -> Unit,
+    val onOpenSchedules: () -> Unit,
     val onRemoveHomeApp: (InstalledApp) -> Unit,
     val onRenameHomeApp: (InstalledApp, String?) -> Unit,
     val onUninstallApp: (InstalledApp) -> Unit,

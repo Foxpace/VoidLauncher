@@ -2,10 +2,8 @@ package com.tomasrepcik.voidlauncher.ui.schedule
 
 import android.app.TimePickerDialog
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,21 +15,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -55,7 +51,6 @@ import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchField
 import com.tomasrepcik.voidlauncher.ui.components.LauncherSearchOptions
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationActions
 import com.tomasrepcik.voidlauncher.ui.components.SwipeNavigationContainer
-import java.time.DayOfWeek
 
 @Composable
 fun ScheduleListScreen(
@@ -74,28 +69,11 @@ fun ScheduleListScreen(
         if (state.isLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         if (!state.isLoading && state.schedules.isEmpty()) {
             item {
-                ElevatedCard {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.no_schedules),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text = stringResource(R.string.regular_apps_when_no_schedule),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                        Button(
-                            onClick = onAdd,
-                            modifier = Modifier.testTag("schedule_add_button"),
-                        ) {
-                            Icon(Icons.Outlined.Add, contentDescription = null)
-                            Text(stringResource(R.string.add_schedule))
-                        }
-                    }
+                Box(
+                    modifier = Modifier.fillParentMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    ScheduleEmptyState(onAdd)
                 }
             }
         }
@@ -212,20 +190,40 @@ fun ScheduleEditorScreen(
             )
         }
         item {
-            OutlinedButton(
+            ElevatedCard(
                 onClick = { onIntent(ScheduleEditorIntent.OpenAppPicker) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("schedule_choose_apps_button"),
             ) {
-                Icon(Icons.Outlined.Edit, contentDescription = null)
-                Text(
-                    text = stringResource(R.string.choose_schedule_apps),
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp),
-                )
-                Text(stringResource(R.string.schedule_app_count, state.selectedAppKeys.size))
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.choose_schedule_apps),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.schedule_app_count,
+                                state.selectedAppKeys.size,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                    )
+                }
             }
         }
         items(
@@ -445,94 +443,38 @@ private fun ScheduleRow(
 }
 
 @Composable
-private fun DayPicker(
-    selected: Set<DayOfWeek>,
-    onIntent: (ScheduleEditorIntent) -> Unit,
-) {
-    val presets = listOf(
-        stringResource(R.string.every_day) to EVERY_DAY,
-        stringResource(R.string.weekdays) to WEEKDAYS,
-        stringResource(R.string.weekend) to WEEKEND,
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            presets.forEach { preset ->
-                FilterChip(
-                    selected = selected == preset.second,
-                    onClick = { onIntent(ScheduleEditorIntent.DaysChanged(preset.second)) },
-                    label = { Text(preset.first) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("schedule_preset_${preset.first}"),
-                )
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            DayOfWeek.entries.forEach { day ->
-                val isSelected = day in selected
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1f)
-                        .background(
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
-                            shape = CircleShape,
-                        )
-                        .selectable(
-                            selected = isSelected,
-                            role = Role.Checkbox,
-                            onClick = { onIntent(ScheduleEditorIntent.DayToggled(day)) },
-                        )
-                        .testTag("schedule_day_${day.name}"),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = day.shortName(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun TimeRangePicker(
     startMinute: Int,
     endMinute: Int,
     onIntent: (ScheduleEditorIntent) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TimeButton(
-            label = stringResource(R.string.start_time),
-            minute = startMinute,
-            modifier = Modifier.weight(1f),
-            onSelected = { onIntent(ScheduleEditorIntent.StartTimeChanged(it)) },
-        )
-        TimeButton(
-            label = stringResource(R.string.end_time),
-            minute = endMinute,
-            modifier = Modifier.weight(1f),
-            onSelected = { onIntent(ScheduleEditorIntent.EndTimeChanged(it)) },
-        )
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TimeButton(
+                label = stringResource(R.string.start_time),
+                minute = startMinute,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("schedule_start_time_button"),
+                onSelected = { onIntent(ScheduleEditorIntent.StartTimeChanged(it)) },
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+            )
+            TimeButton(
+                label = stringResource(R.string.end_time),
+                minute = endMinute,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("schedule_end_time_button"),
+                onSelected = { onIntent(ScheduleEditorIntent.EndTimeChanged(it)) },
+            )
+        }
     }
 }
 
@@ -545,22 +487,28 @@ private fun TimeButton(
 ) {
     val context = LocalContext.current
     val safeMinute = minute.coerceIn(0, MINUTES_PER_DAY - 1)
-    OutlinedButton(
-        onClick = {
-            TimePickerDialog(
-                context,
-                { _, hour, selectedMinute -> onSelected(hour * MINUTES_PER_HOUR + selectedMinute) },
-                safeMinute / MINUTES_PER_HOUR,
-                safeMinute % MINUTES_PER_HOUR,
-                android.text.format.DateFormat.is24HourFormat(context),
-            ).show()
-        },
-        modifier = modifier,
+    Column(
+        modifier = modifier
+            .clickable(role = Role.Button) {
+                TimePickerDialog(
+                    context,
+                    { _, hour, selectedMinute ->
+                        onSelected(hour * MINUTES_PER_HOUR + selectedMinute)
+                    },
+                    safeMinute / MINUTES_PER_HOUR,
+                    safeMinute % MINUTES_PER_HOUR,
+                    android.text.format.DateFormat.is24HourFormat(context),
+                ).show()
+            }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Text(safeMinute.asTime(), style = MaterialTheme.typography.titleMedium)
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.secondary,
+        )
+        Text(safeMinute.asTime(), style = MaterialTheme.typography.titleLarge)
     }
 }
 

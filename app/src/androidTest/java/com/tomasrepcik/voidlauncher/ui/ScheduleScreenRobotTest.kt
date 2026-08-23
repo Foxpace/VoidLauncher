@@ -1,5 +1,6 @@
 package com.tomasrepcik.voidlauncher.ui
 
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -44,7 +45,12 @@ class ScheduleScreenRobotTest {
             }
         }
 
-        composeRule.onNodeWithText("Your regular Home apps stay visible whenever no schedule is active.")
+        composeRule.onNodeWithTag("schedule_empty_state").assertIsDisplayed()
+        composeRule.onNodeWithText("No app schedules yet").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Create one to choose which apps appear on Home by weekday and time. " +
+                "Your regular Home apps stay visible until a schedule is active.",
+        )
             .assertIsDisplayed()
         composeRule.onNodeWithTag("schedule_add_button").performClick()
         assertEquals(1, addRequests)
@@ -101,6 +107,8 @@ class ScheduleScreenRobotTest {
         DayOfWeek.entries.forEach { day ->
             composeRule.onNodeWithTag("schedule_day_${day.name}").assertIsDisplayed()
         }
+        composeRule.onNodeWithTag("schedule_start_time_button").assertHasClickAction()
+        composeRule.onNodeWithTag("schedule_end_time_button").assertHasClickAction()
         val enabledControls = composeRule.onAllNodesWithText("Use this schedule")
         assertEquals(0, enabledControls.fetchSemanticsNodes().size)
         val appSearchFields = composeRule.onAllNodesWithTag("schedule_app_search")

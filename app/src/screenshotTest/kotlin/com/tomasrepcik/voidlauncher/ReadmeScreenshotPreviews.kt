@@ -91,6 +91,7 @@ private val homeActions = HomeActions(
     onAppClicked = {},
     onShortcutClicked = {},
     onOpenDrawer = {},
+    onOpenSchedules = {},
     onRemoveHomeApp = {},
     onRenameHomeApp = { _, _ -> },
     onUninstallApp = {},
@@ -121,6 +122,28 @@ fun readmeHome() {
         HomeScreen(
             state = HomeUiState(
                 homeApps = sampleApps.take(HOME_APP_COUNT),
+                shortcuts = sampleShortcuts,
+                isLoading = false,
+            ),
+            actions = homeActions,
+        )
+    }
+}
+
+@PreviewTest
+@Preview(
+    name = "Home Empty",
+    widthDp = README_WIDTH_DP,
+    heightDp = README_HEIGHT_DP,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    showBackground = true,
+)
+@Composable
+fun homeEmpty() {
+    ReadmePreview {
+        HomeScreen(
+            state = HomeUiState(
+                homeApps = emptyList(),
                 shortcuts = sampleShortcuts,
                 isLoading = false,
             ),

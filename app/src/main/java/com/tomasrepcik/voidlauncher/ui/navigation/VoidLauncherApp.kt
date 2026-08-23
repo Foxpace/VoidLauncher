@@ -128,6 +128,7 @@ fun VoidLauncherApp() {
                             onAppClicked = viewModel::onAppClicked,
                             onShortcutClicked = viewModel::onShortcutClicked,
                             onOpenDrawer = { backStack.pushSingleTop(AppListRoute) },
+                            onOpenSchedules = { backStack.pushSingleTop(ScheduleListRoute) },
                             onRemoveHomeApp = { app ->
                                 mutationScope.launchMutation(
                                     context,

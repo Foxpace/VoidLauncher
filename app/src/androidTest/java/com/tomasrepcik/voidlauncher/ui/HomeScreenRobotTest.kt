@@ -60,16 +60,31 @@ class HomeScreenRobotTest {
     }
 
     @Test
-    fun givenHomeWithoutPinnedApps_whenAddAppIsTapped_thenDrawerOpenIsRequested() {
+    fun givenHomeWithoutApps_whenEmptyStateActionsAreTapped_thenNavigationIsRequested() {
         // GIVEN
         val robot = HomeRobot(composeRule)
         robot.launch(homeApps = emptyList())
 
         // WHEN
+        robot.assertEmptyStateVisible()
         robot.tapAddApp()
+        robot.tapEditSchedules()
 
         // THEN
         assertEquals(1, robot.drawerOpenRequests)
+        assertEquals(1, robot.scheduleOpenRequests)
+    }
+
+    @Test
+    fun givenActiveScheduleWithoutApps_whenEmptyStateIsShown_thenScheduleMessageIsDisplayed() {
+        // GIVEN
+        val robot = HomeRobot(composeRule)
+
+        // WHEN
+        robot.launch(homeApps = emptyList(), isScheduleActive = true)
+
+        // THEN
+        robot.assertScheduledEmptyStateVisible()
     }
 
     @Test
@@ -117,6 +132,8 @@ private class HomeRobot(
 ) {
     var drawerOpenRequests = 0
         private set
+    var scheduleOpenRequests = 0
+        private set
     var browserSearchRequests = 0
         private set
     var openedAppLabel: String? = null
@@ -126,6 +143,7 @@ private class HomeRobot(
 
     fun launch(
         homeApps: List<InstalledApp> = listOf(app("Signal"), app("Spotify")),
+        isScheduleActive: Boolean = false,
     ) {
         composeRule.setContent {
             VoidLauncherTheme {
@@ -134,6 +152,7 @@ private class HomeRobot(
                     state = HomeUiState(
                         query = query,
                         homeApps = homeApps,
+                        isScheduleActive = isScheduleActive,
                         shortcuts = listOf(
                             ResolvedShortcut(
                                 slot = ShortcutSlot.LEFT,
@@ -157,6 +176,7 @@ private class HomeRobot(
                         onAppClicked = { openedAppLabel = it.label },
                         onShortcutClicked = { openedShortcutSlot = it.slot },
                         onOpenDrawer = { drawerOpenRequests += 1 },
+                        onOpenSchedules = { scheduleOpenRequests += 1 },
                         onRemoveHomeApp = {},
                         onRenameHomeApp = { _, _ -> },
                         onUninstallApp = {},
@@ -193,6 +213,23 @@ private class HomeRobot(
 
     fun tapAddApp() {
         composeRule.onNodeWithTag("home_add_app_button").performClick()
+    }
+
+    fun assertEmptyStateVisible() {
+        composeRule.onNodeWithTag("home_empty_state").assertIsDisplayed()
+        composeRule.onNodeWithText("No apps to show").assertIsDisplayed()
+        composeRule.onNodeWithText("Open app list").assertIsDisplayed()
+        composeRule.onNodeWithText("Edit app schedules").assertIsDisplayed()
+    }
+
+    fun tapEditSchedules() {
+        composeRule.onNodeWithTag("home_edit_schedules_button").performClick()
+    }
+
+    fun assertScheduledEmptyStateVisible() {
+        composeRule.onNodeWithTag("home_empty_state").assertIsDisplayed()
+        composeRule.onNodeWithText("This schedule has no available apps right now.")
+            .assertIsDisplayed()
     }
 
     fun tapHomeApp(label: String) {

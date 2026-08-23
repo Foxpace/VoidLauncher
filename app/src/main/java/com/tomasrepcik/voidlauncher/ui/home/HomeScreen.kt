@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -187,23 +186,11 @@ private fun BoxScope.HomeApps(
                 .fillMaxWidth()
                 .padding(top = 104.dp),
         )
-        state.homeApps.isEmpty() && state.isScheduleActive -> Text(
-            text = stringResource(R.string.no_apps_scheduled_now),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 104.dp),
+        state.homeApps.isEmpty() -> HomeEmptyState(
+            isScheduleActive = state.isScheduleActive,
+            onOpenDrawer = actions.onOpenDrawer,
+            onOpenSchedules = actions.onOpenSchedules,
         )
-        state.homeApps.isEmpty() -> FilledTonalButton(
-            onClick = actions.onOpenDrawer,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 88.dp)
-                .testTag("home_add_app_button"),
-        ) {
-            Text(stringResource(R.string.home_add_app))
-        }
         else -> HomeAppList(state.homeApps, actions, controller)
     }
 }
