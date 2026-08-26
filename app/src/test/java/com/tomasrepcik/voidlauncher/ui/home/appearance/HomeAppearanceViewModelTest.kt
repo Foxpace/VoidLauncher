@@ -2,6 +2,7 @@ package com.tomasrepcik.voidlauncher.ui.home.appearance
 
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
+import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.PlannedRepositoryFailures
 import com.tomasrepcik.voidlauncher.testing.launcherRepository
@@ -107,6 +108,42 @@ class HomeAppearanceViewModelTest {
             assertThat(released).containsExactly("content://images/new")
             val error = effect.await() as LauncherRootAction.ShowError
             assertThat(error.error.kind).isEqualTo(AppErrorKind.STORAGE_WRITE_FAILED)
+        }
+
+    @Test
+    fun givenBackgroundAccessFailure_whenNewBackgroundIsSelected_thenExistingBackgroundIsPreserved() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val repository = launcherRepository()
+            advanceUntilIdle()
+            val preferencesRepository = repository.preferencesRepository()
+            preferencesRepository.setHomeBackground("content://images/existing")
+            advanceUntilIdle()
+            val released = mutableListOf<String>()
+            val subject = HomeAppearanceViewModel(
+                preferences = preferencesRepository,
+                contentPermissions = RecordingContentPermissions(
+                    onKeep = { false },
+                    onRelease = released::add,
+                ),
+                backgroundImageReader = RecordingBackgroundImageReader(),
+            )
+            startCollecting(subject.state)
+            advanceUntilIdle()
+            val error = async { subject.rootActions.first() }
+
+            // WHEN
+            subject.onAction(HomeAppearanceAction.SelectBackground("content://images/rejected"))
+            advanceUntilIdle()
+
+            // THEN
+            val preferences = repository.readyState().launcher.preferences
+            assertThat(preferences.homeBackgroundUri).isEqualTo("content://images/existing")
+            assertThat(subject.state.value.backgroundUri).isEqualTo("content://images/existing")
+            assertThat(released).isEmpty()
+            val action = error.await() as LauncherRootAction.ShowError
+            assertThat(action.error.kind).isEqualTo(AppErrorKind.BACKGROUND_ACCESS_FAILED)
+            assertThat(action.error.operation).isEqualTo(AppOperation.SAVE_HOME_BACKGROUND)
         }
 }
 

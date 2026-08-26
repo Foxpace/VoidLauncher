@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.ui.onboarding.NavigationTutorial
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -22,6 +23,7 @@ import org.koin.compose.koinInject
 @Composable
 internal fun VoidLauncherApp(
     appViewModel: LauncherAppViewModel = koinViewModel(),
+    appearanceViewModel: HomeAppearanceViewModel = koinViewModel(),
     messages: LauncherRootActionMessages = koinInject(),
 ) {
     val state by appViewModel.uiState.collectAsStateWithLifecycle()
@@ -31,9 +33,13 @@ internal fun VoidLauncherApp(
         !tutorialDismissedThisSession
 
     HandleRootActions(appViewModel.rootActions, snackbarHostState)
+    HandleRootActions(appearanceViewModel.rootActions, snackbarHostState)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        LauncherNavigation(snackbarHostState = snackbarHostState)
+        LauncherNavigation(
+            snackbarHostState = snackbarHostState,
+            appearanceViewModel = appearanceViewModel,
+        )
 
         SnackbarHost(
             hostState = snackbarHostState,

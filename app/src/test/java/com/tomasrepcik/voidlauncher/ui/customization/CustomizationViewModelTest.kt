@@ -3,6 +3,8 @@ package com.tomasrepcik.voidlauncher.ui.customization
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
+import com.tomasrepcik.voidlauncher.data.repository.ShortcutStorage
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.installedApp
@@ -16,12 +18,14 @@ import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPick
 import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPickerAction
 import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPickerNavigationEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import org.junit.Rule
 import org.junit.Test
 
@@ -125,4 +129,56 @@ class CustomizationViewModelTest {
             assertThat(right.installedApp).isEqualTo(minuta)
             assertThat(completion.await()).isEqualTo(LauncherRootAction.CloseScreen)
         }
+
+    @Test
+    fun givenShortcutSaveInProgress_whenSelectionIsRepeated_thenOnlyOneCloseIsRequested() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val repository = launcherRepository()
+            advanceUntilIdle()
+            val storage = BlockingShortcutStorage()
+            val subject = ShortcutPickerViewModel(
+                slot = ShortcutSlot.LEFT,
+                installedApps = repository.installedAppsRepository(),
+                shortcuts = ShortcutRepository(repository, storage),
+                installedAppSearch = InstalledAppSearch(),
+            )
+            startCollecting(subject.uiState)
+            val completion = async { subject.rootActions.first() }
+
+            // WHEN
+            subject.onAction(ShortcutPickerAction.SelectContacts)
+            subject.onAction(ShortcutPickerAction.SelectCamera)
+            runCurrent()
+
+            // THEN
+            assertThat(storage.saveCount).isEqualTo(1)
+            assertThat(subject.uiState.value.isSaving).isTrue()
+
+            // WHEN
+            storage.finishSave()
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(completion.await()).isEqualTo(LauncherRootAction.CloseScreen)
+            assertThat(storage.saveCount).isEqualTo(1)
+        }
+}
+
+private class BlockingShortcutStorage : ShortcutStorage {
+    private val saveFinished = CompletableDeferred<Unit>()
+    var saveCount: Int = 0
+        private set
+
+    override suspend fun saveShortcut(
+        slot: ShortcutSlot,
+        selection: ShortcutSelection,
+    ) {
+        saveCount += 1
+        saveFinished.await()
+    }
+
+    fun finishSave() {
+        saveFinished.complete(Unit)
+    }
 }

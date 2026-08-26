@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
 import com.tomasrepcik.voidlauncher.data.repository.PreferencesRepository
 import com.tomasrepcik.voidlauncher.data.repository.RepositoryWriteResult
+import com.tomasrepcik.voidlauncher.domain.error.AppError
+import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
+import com.tomasrepcik.voidlauncher.domain.error.AppOperation
+import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,25 +59,36 @@ internal class HomeAppearanceViewModel(
 
     private fun saveBackground(uri: String?) {
         viewModelScope.launch {
-            backgroundChangeLock.withLock {
-                val previousUri = mutableState.value.backgroundUri
-                val keptNewAccess = uri?.let(contentPermissions::keepReadAccess)?.isSuccess ?: false
-                when (val result = preferences.setHomeBackground(uri)) {
-                    RepositoryWriteResult.Completed -> {
-                        if (previousUri != uri) {
-                            previousUri?.let(contentPermissions::releaseReadAccess)
-                        }
-                    }
-                    is RepositoryWriteResult.Failed -> {
-                        if (keptNewAccess && previousUri != uri) {
-                            contentPermissions.releaseReadAccess(uri)
-                        }
-                        rootActionChannel.send(LauncherRootAction.ShowError(result.error))
-                    }
-                }
+            backgroundChangeLock.withLock { persistBackground(uri) }
+        }
+    }
+
+    private suspend fun persistBackground(uri: String?) {
+        val previousUri = mutableState.value.backgroundUri
+        val accessResult = uri?.let(contentPermissions::keepReadAccess)
+        if (accessResult?.isFailure == true) {
+            rootActionChannel.send(
+                LauncherRootAction.ShowError(backgroundAccessError(accessResult.exceptionOrNull())),
+            )
+            return
+        }
+        when (val result = preferences.setHomeBackground(uri)) {
+            RepositoryWriteResult.Completed -> {
+                if (previousUri != uri) previousUri?.let(contentPermissions::releaseReadAccess)
+            }
+            is RepositoryWriteResult.Failed -> {
+                if (uri != null && previousUri != uri) contentPermissions.releaseReadAccess(uri)
+                rootActionChannel.send(LauncherRootAction.ShowError(result.error))
             }
         }
     }
+
+    private fun backgroundAccessError(cause: Throwable?) = AppError(
+        kind = AppErrorKind.BACKGROUND_ACCESS_FAILED,
+        operation = AppOperation.SAVE_HOME_BACKGROUND,
+        recovery = ErrorRecovery.NONE,
+        cause = cause,
+    )
 
     private suspend fun loadAppearance(preferences: LauncherPreferences) {
         val current = mutableState.value

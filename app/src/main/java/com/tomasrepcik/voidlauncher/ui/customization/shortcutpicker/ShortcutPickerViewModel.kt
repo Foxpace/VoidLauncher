@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.RepositoryWriteResult
 import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
@@ -25,6 +26,7 @@ class ShortcutPickerViewModel(
     installedAppSearch: InstalledAppSearch,
 ) : ViewModel() {
     private val query = MutableStateFlow("")
+    private val saving = MutableStateFlow(false)
     private val rootActionChannel = Channel<LauncherRootAction>(Channel.BUFFERED)
     private val navigationChannel = Channel<ShortcutPickerNavigationEvent>(Channel.BUFFERED)
     internal val rootActions = rootActionChannel.receiveAsFlow()
@@ -33,14 +35,20 @@ class ShortcutPickerViewModel(
     val uiState: StateFlow<ShortcutPickerUiState> = combine(
         installedApps.apps,
         query,
-    ) { currentApps, currentQuery ->
+        saving,
+    ) { currentApps, currentQuery, isSaving ->
         val installedApps = currentApps
-            ?: return@combine ShortcutPickerUiState(query = currentQuery, isLoading = true)
+            ?: return@combine ShortcutPickerUiState(
+                query = currentQuery,
+                isLoading = true,
+                isSaving = isSaving,
+            )
         val filtered = installedAppSearch.filter(currentQuery, installedApps)
         ShortcutPickerUiState(
             query = currentQuery,
             apps = filtered,
             isLoading = false,
+            isSaving = isSaving,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -60,11 +68,15 @@ class ShortcutPickerViewModel(
     }
 
     private fun select(selection: ShortcutSelection) {
+        if (saving.value) return
+        saving.value = true
         viewModelScope.launch {
+            val result = shortcuts.save(slot, selection)
             rootActionChannel.sendWriteResult(
-                shortcuts.save(slot, selection),
+                result,
                 sendCompletion = true,
             )
+            if (result is RepositoryWriteResult.Failed) saving.value = false
         }
     }
 }

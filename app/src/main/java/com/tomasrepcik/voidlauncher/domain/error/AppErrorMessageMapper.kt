@@ -14,6 +14,7 @@ class AppErrorMessageMapper {
             AppErrorKind.STORAGE_READ_FAILED -> R.string.error_storage_read_failed
             AppErrorKind.STORAGE_WRITE_FAILED -> R.string.error_storage_write_failed
             AppErrorKind.INSTALLED_APPS_LOAD_FAILED -> R.string.error_installed_apps_load_failed
+            AppErrorKind.BACKGROUND_ACCESS_FAILED -> R.string.error_background_access_failed
         },
     )
 

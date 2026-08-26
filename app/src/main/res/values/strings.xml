@@ -73,6 +73,7 @@
     <string name="error_storage_read_failed">VoidLauncher could not refresh its saved launcher data.</string>
     <string name="error_storage_write_failed">VoidLauncher could not save that change.</string>
     <string name="error_installed_apps_load_failed">VoidLauncher could not refresh the installed apps.</string>
+    <string name="error_background_access_failed">VoidLauncher cannot keep access to that image. Choose another image.</string>
     <string name="app_schedules">App schedules</string>
     <string name="plan_visible_apps">Plan visible apps</string>
     <string name="plan_visible_apps_summary">Choose which apps appear by weekday and time.</string>

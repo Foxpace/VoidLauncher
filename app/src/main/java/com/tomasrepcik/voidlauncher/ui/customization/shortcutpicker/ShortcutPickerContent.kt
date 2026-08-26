@@ -39,17 +39,21 @@ internal fun ShortcutPickerContent(
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        systemShortcutItems(actions)
+        systemShortcutItems(actions, enabled = !state.isSaving)
         appShortcutItems(state, actions)
     }
 }
 
-private fun LazyListScope.systemShortcutItems(actions: ShortcutPickerActions) {
+private fun LazyListScope.systemShortcutItems(
+    actions: ShortcutPickerActions,
+    enabled: Boolean,
+) {
     item { SettingsSectionTitle(stringResource(R.string.system_shortcuts)) }
     item {
         SystemShortcutButtons(
             onContactsSelected = actions.onContactsSelected,
             onCameraSelected = actions.onCameraSelected,
+            enabled = enabled,
         )
     }
 }
@@ -70,11 +74,18 @@ private fun LazyListScope.appShortcutItems(
     if (state.isLoading && state.apps.isEmpty()) {
         item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
     }
+    if (state.isSaving) {
+        item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+    }
     items(
         items = state.apps,
         key = { "${it.key.packageName}:${it.key.activityName}" },
     ) { app ->
-        ShortcutAppRow(app = app, onSelect = { actions.onAppSelected(app) })
+        ShortcutAppRow(
+            app = app,
+            enabled = !state.isSaving,
+            onSelect = { actions.onAppSelected(app) },
+        )
     }
 }
 
@@ -82,15 +93,16 @@ private fun LazyListScope.appShortcutItems(
 private fun SystemShortcutButtons(
     onContactsSelected: () -> Unit,
     onCameraSelected: () -> Unit,
+    enabled: Boolean,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        OutlinedButton(onClick = onContactsSelected) {
+        OutlinedButton(onClick = onContactsSelected, enabled = enabled) {
             Text(stringResource(R.string.contacts))
         }
-        OutlinedButton(onClick = onCameraSelected) {
+        OutlinedButton(onClick = onCameraSelected, enabled = enabled) {
             Text(stringResource(R.string.camera))
         }
     }
@@ -99,9 +111,10 @@ private fun SystemShortcutButtons(
 @Composable
 private fun ShortcutAppRow(
     app: InstalledApp,
+    enabled: Boolean,
     onSelect: () -> Unit,
 ) {
-    ElevatedCard(onClick = onSelect) {
+    ElevatedCard(onClick = onSelect, enabled = enabled) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

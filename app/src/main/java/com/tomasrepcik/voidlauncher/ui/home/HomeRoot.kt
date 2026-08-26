@@ -17,13 +17,12 @@ import org.koin.androidx.compose.koinViewModel
 internal fun HomeRoot(
     snackbarHostState: SnackbarHostState,
     navigator: LauncherNavigator,
+    appearanceViewModel: HomeAppearanceViewModel,
     viewModel: HomeViewModel = koinViewModel(),
-    appearanceViewModel: HomeAppearanceViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appearance by appearanceViewModel.state.collectAsStateWithLifecycle()
     HandleRootActions(viewModel.rootActions, snackbarHostState)
-    HandleRootActions(appearanceViewModel.rootActions, snackbarHostState)
     LaunchedEffect(viewModel, navigator) {
         viewModel.navigation.collect { destination ->
             when (destination) {

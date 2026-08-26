@@ -1,6 +1,5 @@
 package com.tomasrepcik.voidlauncher.ui.customization
 
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,7 +12,6 @@ import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceActions
 import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceAction
 import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.ui.home.appearance.rememberSystemImageSelector
-import com.tomasrepcik.voidlauncher.ui.navigation.HandleRootActions
 import com.tomasrepcik.voidlauncher.ui.navigation.LauncherNavigator
 import com.tomasrepcik.voidlauncher.ui.navigation.ScheduleListRoute
 import com.tomasrepcik.voidlauncher.ui.navigation.ShortcutPickerRoute
@@ -22,10 +20,9 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 internal fun CustomizationRoot(
-    snackbarHostState: SnackbarHostState,
     navigator: LauncherNavigator,
+    appearanceViewModel: HomeAppearanceViewModel,
     viewModel: CustomizationViewModel = koinViewModel(),
-    appearanceViewModel: HomeAppearanceViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val appearance by appearanceViewModel.state.collectAsStateWithLifecycle()
@@ -58,7 +55,6 @@ internal fun CustomizationRoot(
             }
         }
     }
-    HandleRootActions(appearanceViewModel.rootActions, snackbarHostState)
     CustomizationScreen(
         state = state,
         appearance = appearance,

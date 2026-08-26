@@ -6,6 +6,7 @@ data class ShortcutPickerUiState(
     val query: String = "",
     val apps: List<InstalledApp> = emptyList(),
     val isLoading: Boolean = true,
+    val isSaving: Boolean = false,
 )
 
 sealed interface ShortcutPickerAction {

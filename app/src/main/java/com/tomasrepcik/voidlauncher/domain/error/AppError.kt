@@ -16,6 +16,7 @@ enum class AppErrorKind {
     STORAGE_READ_FAILED,
     STORAGE_WRITE_FAILED,
     INSTALLED_APPS_LOAD_FAILED,
+    BACKGROUND_ACCESS_FAILED,
 }
 
 enum class AppOperation {
@@ -35,6 +36,7 @@ enum class AppOperation {
     RENAME_HOME_APP,
     SAVE_SHORTCUT,
     UPDATE_PREFERENCES,
+    SAVE_HOME_BACKGROUND,
     SAVE_SCHEDULE,
     DELETE_SCHEDULE,
 }

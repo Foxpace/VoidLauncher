@@ -23,6 +23,7 @@ import com.tomasrepcik.voidlauncher.ui.customization.CustomizationRoot
 import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPickerRoot
 import com.tomasrepcik.voidlauncher.ui.drawer.DrawerRoot
 import com.tomasrepcik.voidlauncher.ui.home.HomeRoot
+import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorRoot
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListRoot
 
@@ -33,6 +34,7 @@ private const val APP_DRAWER_FADE_MILLIS = 240
 @Composable
 internal fun LauncherNavigation(
     snackbarHostState: SnackbarHostState,
+    appearanceViewModel: HomeAppearanceViewModel,
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     val navigator = LauncherNavigator(backStack)
@@ -53,6 +55,7 @@ internal fun LauncherNavigation(
                 HomeRoot(
                     snackbarHostState = snackbarHostState,
                     navigator = navigator,
+                    appearanceViewModel = appearanceViewModel,
                 )
             }
             entry<AppListRoute>(metadata = appDrawerTransitionMetadata()) {
@@ -63,8 +66,8 @@ internal fun LauncherNavigation(
             }
             entry<CustomizationRoute> {
                 CustomizationRoot(
-                    snackbarHostState = snackbarHostState,
                     navigator = navigator,
+                    appearanceViewModel = appearanceViewModel,
                 )
             }
             entry<ScheduleListRoute> {
