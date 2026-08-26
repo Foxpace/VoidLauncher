@@ -34,7 +34,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.ui.components.AppIcon
 import kotlinx.coroutines.launch
 
@@ -52,7 +51,6 @@ internal fun DrawerAppBrowser(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    val alphabetIndex = remember(state.apps) { buildAlphabetIndex(state.apps) }
     val scope = rememberCoroutineScope()
 
     Row(
@@ -71,8 +69,10 @@ internal fun DrawerAppBrowser(
                 items = state.apps,
                 key = { _, app -> "${app.key.packageName}:${app.key.activityName}" },
             ) { index, app ->
-                val sectionLetter = sectionLetterFor(app)
-                val previousLetter = state.apps.getOrNull(index - 1)?.let(::sectionLetterFor)
+                val sectionLetter = state.sectionLetters.getValue(app.key)
+                val previousLetter = state.apps.getOrNull(index - 1)?.let { previousApp ->
+                    state.sectionLetters.getValue(previousApp.key)
+                }
                 if (sectionLetter != previousLetter) {
                     Text(
                         text = sectionLetter.toString(),
@@ -95,9 +95,9 @@ internal fun DrawerAppBrowser(
         }
 
         AlphabetRail(
-            letters = alphabetIndex.keys.toList(),
+            letters = state.alphabetIndex.keys.toList(),
             onLetterClick = { letter ->
-                alphabetIndex[letter]?.let { position ->
+                state.alphabetIndex[letter]?.let { position ->
                     scope.launch { listState.animateScrollToItem(position) }
                 }
             },
@@ -199,16 +199,3 @@ private fun AlphabetRail(
         }
     }
 }
-
-private fun buildAlphabetIndex(apps: List<InstalledApp>): Map<Char, Int> {
-    val index = linkedMapOf<Char, Int>()
-    apps.forEachIndexed { position, app ->
-        index.putIfAbsent(sectionLetterFor(app), position)
-    }
-    return index
-}
-
-private fun sectionLetterFor(app: InstalledApp): Char =
-    installedAppSearch.sectionLetter(app.label)
-
-private val installedAppSearch = InstalledAppSearch()

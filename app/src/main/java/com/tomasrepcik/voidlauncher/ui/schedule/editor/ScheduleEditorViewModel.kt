@@ -11,7 +11,6 @@ import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.ui.sendWriteResult
-import java.util.UUID
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,9 +36,8 @@ class ScheduleEditorViewModel(
     installedApps: InstalledAppsRepository,
     homeApps: HomeAppsRepository,
     private val scheduleId: String?,
-    private val newId: () -> String = { UUID.randomUUID().toString() },
-    @Suppress("UnusedPrivateProperty")
-    private val installedAppSearch: InstalledAppSearch = InstalledAppSearch(),
+    installedAppSearch: InstalledAppSearch,
+    private val scheduleIdFactory: ScheduleIdFactory,
 ) : ViewModel() {
     private val draft = MutableStateFlow<ScheduleEditorUiState?>(null)
     private val saving = MutableStateFlow(false)
@@ -78,8 +76,9 @@ class ScheduleEditorViewModel(
         viewModelScope.launch {
             val data = repositoryData.first { it.isReady }
             val existing = data.schedules.orEmpty().firstOrNull { schedule -> schedule.id == scheduleId }
+            val defaultHomeApps = data.homeApps?.apps.orEmpty()
             draft.value = existing?.toEditorState() ?: ScheduleEditorUiState(
-                selectedAppKeys = data.homeApps?.apps.orEmpty().mapTo(mutableSetOf()) { it.key },
+                selectedAppKeys = defaultHomeApps.mapTo(mutableSetOf()) { it.key },
                 isLoading = false,
             )
         }
@@ -104,7 +103,7 @@ class ScheduleEditorViewModel(
         saving.value = true
         viewModelScope.launch {
             val schedule = AppSchedule(
-                id = current.id ?: newId(),
+                id = current.id ?: scheduleIdFactory.create(),
                 name = current.name.trim().ifEmpty { DEFAULT_SCHEDULE_NAME },
                 days = current.days,
                 startMinute = current.startMinute,

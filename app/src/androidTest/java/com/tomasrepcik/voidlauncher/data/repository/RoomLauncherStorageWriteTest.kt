@@ -69,13 +69,13 @@ class RoomLauncherStorageWriteTest {
     }
 
     private fun assertEveryWriteWasPersisted(result: StorageWriteResult) {
+        val renamedApp = result.saved.pinnedApps.single { it.key == result.first }
+        val savedShortcut = result.saved.shortcuts.single { it.slot == ShortcutSlot.LEFT }
         assertThat(result.saved.pinnedApps.map(StoredPinnedApp::key))
             .containsExactly(result.third, result.first)
             .inOrder()
-        assertThat(result.saved.pinnedApps.single { it.key == result.first }.labelOverride)
-            .isEqualTo("Renamed")
-        assertThat(result.saved.shortcuts.single { it.slot == ShortcutSlot.LEFT }.selection)
-            .isEqualTo(ShortcutSelection.AppShortcut(result.first))
+        assertThat(renamedApp.labelOverride).isEqualTo("Renamed")
+        assertThat(savedShortcut.selection).isEqualTo(ShortcutSelection.AppShortcut(result.first))
         assertThat(result.saved.schedules).containsExactly(result.schedule)
         assertThat(result.afterDelete.schedules).isEmpty()
     }

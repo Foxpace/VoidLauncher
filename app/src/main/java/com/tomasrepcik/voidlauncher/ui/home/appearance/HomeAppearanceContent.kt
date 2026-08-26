@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.net.toUri
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val MAX_BACKGROUND_DIMENSION = 1_600
@@ -57,7 +56,7 @@ internal interface BackgroundImageReader {
 
 internal class AndroidBackgroundImageReader(
     context: Context,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : BackgroundImageReader {
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 

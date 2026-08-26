@@ -40,10 +40,19 @@ class DrawerViewModel(
             return@combine DrawerUiState(query = currentQuery, isLoading = true)
         }
         val filteredApps = installedAppSearch.filter(currentQuery, currentApps)
+        val sectionLetters = filteredApps.associate { app ->
+            app.key to installedAppSearch.sectionLetter(app.label)
+        }
+        val alphabetIndex = linkedMapOf<Char, Int>()
+        filteredApps.forEachIndexed { index, app ->
+            alphabetIndex.putIfAbsent(sectionLetters.getValue(app.key), index)
+        }
         DrawerUiState(
             query = currentQuery,
             apps = filteredApps,
             pinnedAppKeys = currentHomeApps.keys,
+            sectionLetters = sectionLetters,
+            alphabetIndex = alphabetIndex,
             isLoading = false,
         )
     }.stateIn(

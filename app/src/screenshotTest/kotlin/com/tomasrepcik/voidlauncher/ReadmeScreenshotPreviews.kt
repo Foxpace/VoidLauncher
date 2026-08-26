@@ -35,8 +35,8 @@ import com.tomasrepcik.voidlauncher.ui.home.HomeScreen
 import com.tomasrepcik.voidlauncher.ui.home.HomeUiState
 import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceActions
 import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceState
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorScreen
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorUiState
+import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorScreen
+import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorUiState
 import com.tomasrepcik.voidlauncher.ui.theme.VoidLauncherTheme
 import java.time.DayOfWeek
 
@@ -90,7 +90,6 @@ private val homeActions = HomeActions(
     onBrowserSearch = {},
     onPlayStoreSearch = {},
     onMapsSearch = {},
-    onAppHint = {},
     onAppClicked = {},
     onShortcutClicked = {},
     onOpenDrawer = {},
@@ -149,6 +148,17 @@ fun ReadmeDrawer() {
             state = DrawerUiState(
                 apps = sampleApps,
                 pinnedAppKeys = sampleApps.take(HOME_APP_COUNT).mapTo(mutableSetOf()) { it.key },
+                sectionLetters = sampleApps.associate { app ->
+                    app.key to app.label.first().uppercaseChar()
+                },
+                alphabetIndex = sampleApps
+                    .map { app -> app.label.first().uppercaseChar() }
+                    .distinct()
+                    .associateWith { letter ->
+                        sampleApps.indexOfFirst { app ->
+                            app.label.first().uppercaseChar() == letter
+                        }
+                    },
                 isLoading = false,
             ),
             actions = drawerActions,
@@ -186,7 +196,7 @@ fun ReadmeSchedule() {
                 isLoading = false,
             ),
             onBack = {},
-            onIntent = {},
+            onAction = {},
         )
     }
 }

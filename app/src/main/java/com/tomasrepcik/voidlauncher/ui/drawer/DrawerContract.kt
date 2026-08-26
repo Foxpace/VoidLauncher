@@ -7,6 +7,8 @@ data class DrawerUiState(
     val query: String = "",
     val apps: List<InstalledApp> = emptyList(),
     val pinnedAppKeys: Set<AppKey> = emptySet(),
+    val sectionLetters: Map<AppKey, Char> = emptyMap(),
+    val alphabetIndex: Map<Char, Int> = emptyMap(),
     val isLoading: Boolean = true,
 )
 

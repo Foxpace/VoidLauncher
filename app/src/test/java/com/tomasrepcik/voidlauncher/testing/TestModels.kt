@@ -105,10 +105,10 @@ fun LauncherRepository.readyState(): LauncherRepositoryState.Ready =
     state.value as LauncherRepositoryState.Ready
 
 fun LauncherRepository.installedAppsRepository() = InstalledAppsRepository(this)
-fun LauncherRepository.homeAppsRepository() = HomeAppsRepository(this)
-fun LauncherRepository.shortcutRepository() = ShortcutRepository(this)
-fun LauncherRepository.preferencesRepository() = PreferencesRepository(this)
-fun LauncherRepository.scheduleRepository() = ScheduleRepository(this)
+fun LauncherRepository.homeAppsRepository() = HomeAppsRepository(this, storage)
+fun LauncherRepository.shortcutRepository() = ShortcutRepository(this, storage)
+fun LauncherRepository.preferencesRepository() = PreferencesRepository(this, storage)
+fun LauncherRepository.scheduleRepository() = ScheduleRepository(this, storage)
 
 private class TestInstalledAppsDataSource(
     apps: List<InstalledApp>,

@@ -241,13 +241,18 @@ private class DrawerRobot(
     fun launch() {
         composeRule.setContent {
             VoidLauncherTheme {
+                val apps = listOf(
+                    installedApp("Camera"),
+                    installedApp("Chrome"),
+                    installedApp("Signal"),
+                )
                 AppDrawerScreen(
                     state = DrawerUiState(
-                        apps = listOf(
-                            installedApp("Camera"),
-                            installedApp("Chrome"),
-                            installedApp("Signal"),
-                        ),
+                        apps = apps,
+                        sectionLetters = apps.associate { app ->
+                            app.key to app.label.first()
+                        },
+                        alphabetIndex = mapOf('C' to 0, 'S' to 2),
                     ),
                     actions = AppDrawerActions(
                         onBack = {},

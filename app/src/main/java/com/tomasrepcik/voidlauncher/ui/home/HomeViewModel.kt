@@ -8,11 +8,12 @@ import com.tomasrepcik.voidlauncher.data.repository.RepositoryWriteResult
 import com.tomasrepcik.voidlauncher.data.repository.ScheduleRepository
 import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
+import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
-import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.ui.sendWriteResult
+import java.time.Clock
 import java.time.LocalDateTime
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -31,16 +31,16 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
+@Suppress("LongParameterList") // Explicit feature dependencies are clearer than a synthetic wrapper.
 class HomeViewModel(
     installedApps: InstalledAppsRepository,
     private val homeApps: HomeAppsRepository,
     shortcuts: ShortcutRepository,
     schedules: ScheduleRepository,
     private val installedAppSearch: InstalledAppSearch,
-    scheduleResolver: AppScheduleResolver = AppScheduleResolver(),
-    currentTime: Flow<LocalDateTime> = flowOf(LocalDateTime.now()),
+    scheduleResolver: AppScheduleResolver,
+    currentTime: Flow<LocalDateTime>,
 ) : ViewModel() {
-
     private val query = MutableStateFlow("")
     private val rootActionChannel = Channel<LauncherRootAction>(capacity = Channel.BUFFERED)
     private val navigationChannel = Channel<HomeNavigationEvent>(capacity = Channel.BUFFERED)
@@ -142,27 +142,11 @@ class HomeViewModel(
         viewModelScope.launch { rootActionChannel.sendWriteResult(write()) }
     }
 
-    companion object {
-        internal fun createForProduction(
-            installedApps: InstalledAppsRepository,
-            homeApps: HomeAppsRepository,
-            shortcuts: ShortcutRepository,
-            schedules: ScheduleRepository,
-            installedAppSearch: InstalledAppSearch,
-        ) = HomeViewModel(
-            installedApps = installedApps,
-            homeApps = homeApps,
-            shortcuts = shortcuts,
-            schedules = schedules,
-            installedAppSearch = installedAppSearch,
-            currentTime = minuteTicks(),
-        )
-    }
 }
 
-private fun minuteTicks(): Flow<LocalDateTime> = flow {
+internal fun minuteTicks(clock: Clock): Flow<LocalDateTime> = flow {
     while (currentCoroutineContext().isActive) {
-        val now = LocalDateTime.now()
+        val now = LocalDateTime.now(clock)
         emit(now)
         val millisUntilNextMinute = (60 - now.second) * 1_000L - now.nano / 1_000_000L
         delay(millisUntilNextMinute.coerceAtLeast(1L).milliseconds)

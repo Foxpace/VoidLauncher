@@ -26,12 +26,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.koin.compose.koinInject
 
 private const val ICON_BITMAP_SIZE_PX = 144
 private const val ICON_CACHE_BYTES = 12 * 1024 * 1024
-private val appIconLoader = AppIconLoader()
 
 internal typealias AppIconContent = @Composable (InstalledApp, Modifier) -> Unit
 
@@ -47,7 +46,12 @@ fun AppIcon(
         return
     }
 
-    val painter = rememberAppIconPainter(app = app, context = LocalContext.current)
+    val appIconLoader = koinInject<AppIconLoader>()
+    val painter = rememberAppIconPainter(
+        app = app,
+        context = LocalContext.current,
+        appIconLoader = appIconLoader,
+    )
     if (painter != null) {
         Image(
             painter = painter,
@@ -73,6 +77,7 @@ fun AppIcon(
 private fun rememberAppIconPainter(
     app: InstalledApp,
     context: Context,
+    appIconLoader: AppIconLoader,
 ): Painter? {
     val bitmap by produceState<ImageBitmap?>(
         initialValue = AppIconBitmapCache.get(app.cacheKey())?.asImageBitmap(),
@@ -86,8 +91,8 @@ private fun rememberAppIconPainter(
     return bitmap?.let(::BitmapPainter)
 }
 
-private class AppIconLoader(
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+internal class AppIconLoader(
+    private val ioDispatcher: CoroutineDispatcher,
 ) {
     suspend fun load(context: Context, app: InstalledApp): Bitmap? = withContext(ioDispatcher) {
         val cacheKey = app.cacheKey()

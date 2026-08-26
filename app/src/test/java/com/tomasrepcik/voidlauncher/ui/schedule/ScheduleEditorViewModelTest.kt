@@ -10,10 +10,12 @@ import com.tomasrepcik.voidlauncher.testing.installedAppsRepository
 import com.tomasrepcik.voidlauncher.testing.readyState
 import com.tomasrepcik.voidlauncher.testing.scheduleRepository
 import com.tomasrepcik.voidlauncher.testing.startCollecting
+import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorAction
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorViewModel
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorNavigationEvent
+import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleIdFactory
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListAction
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListViewModel
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListNavigationEvent
@@ -45,6 +47,8 @@ class ScheduleEditorViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 scheduleId = null,
+                installedAppSearch = InstalledAppSearch(),
+                scheduleIdFactory = ScheduleIdFactory { "schedule" },
             )
             val listNavigation = async { list.navigation.take(3).toList() }
             val editorNavigation = async { editor.navigation.first() }
@@ -77,7 +81,8 @@ class ScheduleEditorViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 scheduleId = null,
-                newId = { "work" },
+                installedAppSearch = InstalledAppSearch(),
+                scheduleIdFactory = ScheduleIdFactory { "work" },
             )
             startCollecting(subject.uiState)
             advanceUntilIdle()
@@ -118,6 +123,8 @@ class ScheduleEditorViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 scheduleId = null,
+                installedAppSearch = InstalledAppSearch(),
+                scheduleIdFactory = ScheduleIdFactory { "schedule" },
             )
             startCollecting(subject.uiState)
 

@@ -3,6 +3,7 @@ package com.tomasrepcik.voidlauncher.ui.home
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
+import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
@@ -27,7 +28,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import java.time.Clock
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -197,6 +200,19 @@ class HomeViewModelTest {
         assertThat(subject.uiState.value.homeApps).containsExactly(music)
         assertThat(subject.uiState.value.isScheduleActive).isFalse()
     }
+
+    @Test
+    fun givenInjectedClock_whenMinuteTicksStarts_thenClockTimeIsEmitted() = runTest {
+        // GIVEN
+        val expected = LocalDateTime.of(2026, 8, 26, 14, 35)
+        val clock = Clock.fixed(expected.toInstant(ZoneOffset.UTC), ZoneOffset.UTC)
+
+        // WHEN
+        val currentTime = minuteTicks(clock).first()
+
+        // THEN
+        assertThat(currentTime).isEqualTo(expected)
+    }
 }
 
 private fun com.tomasrepcik.voidlauncher.data.repository.LauncherRepository.homeViewModel(
@@ -208,5 +224,6 @@ private fun com.tomasrepcik.voidlauncher.data.repository.LauncherRepository.home
     shortcuts = shortcutRepository(),
     schedules = scheduleRepository(),
     installedAppSearch = InstalledAppSearch(),
+    scheduleResolver = AppScheduleResolver(),
     currentTime = currentTime,
 )

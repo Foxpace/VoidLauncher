@@ -11,7 +11,6 @@ import android.os.Build
 import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -28,7 +27,7 @@ class PackageManagerInstalledAppsDataSource(
     private val packageManager: PackageManager,
     private val launcherPackageName: String,
     private val packageChanges: Flow<Unit>,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : InstalledAppsDataSource {
     override fun observeInstalledApps(): Flow<List<InstalledApp>> = packageChanges
         .onStart { emit(Unit) }

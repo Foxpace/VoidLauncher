@@ -14,7 +14,7 @@ data class HomeAppsData(
 
 class HomeAppsRepository internal constructor(
     launcher: LauncherRepository,
-    private val storage: HomeAppsStorage = launcher.storage,
+    private val storage: HomeAppsStorage,
 ) {
     val data: Flow<HomeAppsData?> = launcher.readyLauncherState()
         .map { state ->

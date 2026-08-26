@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.map
 
 class ShortcutRepository internal constructor(
     launcher: LauncherRepository,
-    private val storage: ShortcutStorage = launcher.storage,
+    private val storage: ShortcutStorage,
 ) {
     val shortcuts: Flow<List<ResolvedShortcut>?> = launcher.readyLauncherState()
         .map { state -> state?.bottomShortcuts }

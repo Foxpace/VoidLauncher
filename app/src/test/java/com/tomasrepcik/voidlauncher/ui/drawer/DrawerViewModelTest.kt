@@ -76,6 +76,8 @@ class DrawerViewModelTest {
             // THEN
             assertThat(subject.uiState.value.apps).containsExactly(minuta)
             assertThat(subject.uiState.value.pinnedAppKeys).containsExactly(camera.key)
+            assertThat(subject.uiState.value.sectionLetters).containsExactly(minuta.key, 'M')
+            assertThat(subject.uiState.value.alphabetIndex).containsExactly('M', 0)
         }
 
     @Test

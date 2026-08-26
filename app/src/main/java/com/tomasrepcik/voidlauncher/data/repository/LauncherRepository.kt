@@ -1,6 +1,5 @@
 package com.tomasrepcik.voidlauncher.data.repository
 
-import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
@@ -13,10 +12,7 @@ import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -56,16 +52,6 @@ class LauncherRepository internal constructor(
     private val installedAppsDataSource: InstalledAppsDataSource,
     private val scope: CoroutineScope,
 ) {
-    constructor(
-        database: LauncherDatabase,
-        installedAppsDataSource: InstalledAppsDataSource,
-        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    ) : this(
-        storage = RoomLauncherStorage(database),
-        installedAppsDataSource = installedAppsDataSource,
-        scope = CoroutineScope(SupervisorJob() + ioDispatcher),
-    )
-
     private val installedApps = MutableStateFlow<List<InstalledApp>>(emptyList())
     private val mutableState = MutableStateFlow<LauncherRepositoryState>(LauncherRepositoryState.Loading)
     private var initialized = false
