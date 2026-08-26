@@ -21,13 +21,13 @@
     <td width="25%"><img src="docs/images/readme/home.png" alt="VoidLauncher Home with chosen apps, search, and bottom shortcuts"></td>
     <td width="25%"><img src="docs/images/readme/drawer.png" alt="VoidLauncher app drawer with filtering and an alphabet rail"></td>
     <td width="25%"><img src="docs/images/readme/schedule.png" alt="VoidLauncher schedule editor with weekdays and a time range"></td>
-    <td width="25%"><img src="docs/images/readme/customize.png" alt="VoidLauncher customization screen with shortcuts and app schedules"></td>
+    <td width="25%"><img src="docs/images/readme/customize.png" alt="VoidLauncher customization screen with Home background controls, shortcuts, schedules, and tutorial"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Home keeps the noise down.</sub></td>
-    <td align="center"><sub>Every app stays one action away.</sub></td>
+    <td align="center"><sub>Home shows the apps chosen for now.</sub></td>
+    <td align="center"><sub>Filter every installed app by name or letter.</sub></td>
     <td align="center"><sub>Schedules choose what appears and when.</sub></td>
-    <td align="center"><sub>Bottom shortcuts stay configurable.</sub></td>
+    <td align="center"><sub>Customize the background, shortcuts, schedules, and tutorial.</sub></td>
   </tr>
 </table>
 
@@ -36,6 +36,8 @@
 Most launchers treat every installed app as equally urgent. VoidLauncher does not.
 
 Home is a short list that you control. The complete app drawer is still one swipe away, and search can open an app or send a query to the browser, Play Store, or Maps. App schedules change the visible Home list by weekday and time. They decide what is prominent, never what remains accessible.
+
+Home can use a background image and tint its controls from the image colors. The first-run tutorial explains the gestures, bottom shortcuts, and schedules, and it can be opened again from customization.
 
 The app keeps its launcher state in a local Room database. It asks for no internet permission, account, or cloud service.
 
@@ -47,7 +49,9 @@ The app keeps its launcher state in a local Room database. It asks for no intern
 - Filters the full app drawer and jumps by letter with an alphabet rail
 - Renames, adds, removes, or uninstalls apps from launcher menus
 - Assigns the two bottom shortcuts to Contacts, Camera, or an installed app
-- Schedules different Home app sets for selected days and time ranges
+- Uses a selected image as the Home background, with optional image-derived colors
+- Schedules different Home app sets for selected days and time ranges, including overnight and all-day schedules
+- Shows a replayable tutorial for gestures, shortcuts, and schedules
 
 ## Build it
 
@@ -100,6 +104,12 @@ To rebuild only the logo from `design/void-launcher-icon.svg`:
 
 The preview definitions and their sample launcher state live in `app/src/screenshotTest/kotlin/com/tomasrepcik/voidlauncher/ReadmeScreenshotPreviews.kt`. Edit that file when a README screen or its sample content should change.
 
+## How it is built
+
+Each screen has a feature root, immutable UI state, a ViewModel, and Compose content. Compose renders state and sends user actions back to the ViewModel. Feature roots translate Navigation 3 events and delegate Android actions to a shared handler.
+
+Koin constructs every repository, ViewModel, domain rule, and Android adapter. It also provides dispatchers, the clock, and the app-owned coroutine scope. Feature ViewModels depend on narrow repositories for installed apps, Home apps, shortcuts, preferences, schedules, and startup status. Room stores one coherent launcher snapshot behind those repository contracts.
+
 ## Project map
 
 | Path                           | Purpose                                                         |
@@ -113,4 +123,4 @@ The preview definitions and their sample launcher state live in `app/src/screens
 | `docs/adr`                     | Architecture decisions                                          |
 | `scripts`                      | Reproducible documentation tooling                              |
 
-VoidLauncher is built with Kotlin, Jetpack Compose, Material 3, Navigation 3, Room, coroutines, and Detekt.
+VoidLauncher is built with Kotlin, Jetpack Compose, Material 3, Navigation 3, Room, Koin, coroutines, and Detekt.

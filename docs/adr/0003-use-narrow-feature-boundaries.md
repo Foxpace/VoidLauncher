@@ -25,6 +25,8 @@ Storage follows the same split. `InstalledAppsStorage`, `HomeAppsStorage`, `Shor
 
 Each feature keeps a root, immutable contract, ViewModel, screen, and supporting UI parts. The screen renders state and sends actions to its ViewModel. The ViewModel coordinates repositories and emits state, root actions, and typed navigation events. The root is the boundary where Compose meets the application. It collects state, maps feature navigation events to `LauncherNavigator`, and delegates native work to `LauncherRootActionHandler`.
 
+State used by more than one navigation entry has one owner above the back stack. `VoidLauncherApp` resolves `HomeAppearanceViewModel` once, collects its root actions once, and passes the same instance to Home and Customization. Navigation entries must not decode and retain separate copies of the same background bitmap.
+
 `LauncherNavigation` owns the back stack, route registration, and shared transition defaults. A route can override those defaults through its Navigation 3 entry metadata. The app drawer uses this route-owned metadata for its slower parallax and fade transition without changing motion on unrelated screens.
 
 Native interactions use `LauncherRootAction`. `LauncherRootActionHandler` invokes `LauncherActionExecutor`, reports unexpected failures, maps failures and recovery to user messages, and returns a handled result to the root. ViewModels do not construct Android intents or call Android APIs.
@@ -40,6 +42,8 @@ A ViewModel dependency list now describes the feature instead of the complete la
 Navigation decisions sit next to the feature event that caused them. The route table remains centralized and easy to scan, while a feature root owns the translation from user intent to destination. Route-specific animation can change independently of the global navigation motion.
 
 Native effects have one policy and one Android boundary, but feature roots remain responsible for deciding how handled results affect navigation or snackbars. Tests can exercise repository contracts without constructing unrelated dependencies.
+
+Home and Customization now share one decoded background image for the activity lifetime. Their entry-scoped ViewModels remain separate because their screen state and user actions are not shared.
 
 The split adds more files and Koin definitions. That cost is deliberate. Each main file has one reason to change, and the application can be read by following UI, ViewModel, repository, storage, and platform boundaries in order.
 
