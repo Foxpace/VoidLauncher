@@ -1,6 +1,6 @@
 # Centralize launcher errors and repository initialization
 
-VoidLauncher uses `AppError` as the only model for application failures. Blank searches, missing matches, and app hints remain ordinary UI feedback. The launcher-action module performs known recovery before it returns a recovered or failed outcome, and it lets unexpected exceptions escape.
+VoidLauncher uses `AppError` as the only model for application failures. Blank searches, missing matches, and app hints remain ordinary UI feedback. The launcher-action module performs known recovery before it returns a recovered or failed outcome. It catches unexpected exceptions, preserves their cause in an `UNEXPECTED` error, and returns that error to the shared effect handler. The handler reports the failure before showing a generic user message.
 
 `LauncherRepository` is a concrete module that owns default creation and exposes `Loading`, `Ready`, or `InitializationError` state. Callers cannot read or write storage directly and cannot initialize defaults themselves. Production uses Room storage, while local tests use the in-memory storage adapter through the same repository interface.
 

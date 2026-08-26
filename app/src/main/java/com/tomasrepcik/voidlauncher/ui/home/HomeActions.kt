@@ -9,7 +9,6 @@ data class HomeActions(
     val onBrowserSearch: () -> Unit,
     val onPlayStoreSearch: () -> Unit,
     val onMapsSearch: () -> Unit,
-    val onAppHint: () -> Unit,
     val onAppClicked: (InstalledApp) -> Unit,
     val onShortcutClicked: (ResolvedShortcut) -> Unit,
     val onOpenDrawer: () -> Unit,

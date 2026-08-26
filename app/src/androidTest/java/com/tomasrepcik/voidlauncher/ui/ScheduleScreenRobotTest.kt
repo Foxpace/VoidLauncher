@@ -1,5 +1,8 @@
 package com.tomasrepcik.voidlauncher.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -9,15 +12,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import com.tomasrepcik.voidlauncher.data.model.AppKey
-import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorIntent
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorScreen
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleEditorUiState
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListIntent
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListScreen
-import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleListUiState
+import com.tomasrepcik.voidlauncher.testing.appSchedule
+import com.tomasrepcik.voidlauncher.testing.installedApp
+import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorAction
+import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorScreen
+import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorUiState
+import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListAction
+import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListScreen
+import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListUiState
 import com.tomasrepcik.voidlauncher.ui.theme.VoidLauncherTheme
 import java.time.DayOfWeek
 import org.junit.Rule
@@ -34,6 +36,8 @@ class ScheduleScreenRobotTest {
     fun givenEmptyScheduleList_whenAddActionIsUsed_thenFallbackIsExplainedAndAddIsRequested() {
         // GIVEN
         var addRequests = 0
+
+        // WHEN
         composeRule.setContent {
             VoidLauncherTheme {
                 ScheduleListScreen(
@@ -41,7 +45,7 @@ class ScheduleScreenRobotTest {
                     onBack = {},
                     onAdd = { addRequests += 1 },
                     onEdit = {},
-                    onIntent = {},
+                    onAction = {},
                 )
             }
         }
@@ -65,8 +69,10 @@ class ScheduleScreenRobotTest {
     @Test
     fun givenEnabledScheduleCard_whenToggleIsClicked_thenDisableIntentIsSentWithoutOpeningEditor() {
         // GIVEN
-        val schedule = schedule()
-        var receivedIntent: ScheduleListIntent? = null
+        val schedule = appSchedule(apps = listOf(installedApp("Mail")))
+        var receivedAction: ScheduleListAction? = null
+
+        // WHEN
         composeRule.setContent {
             VoidLauncherTheme {
                 ScheduleListScreen(
@@ -74,7 +80,7 @@ class ScheduleScreenRobotTest {
                     onBack = {},
                     onAdd = {},
                     onEdit = {},
-                    onIntent = { receivedIntent = it },
+                    onAction = { receivedAction = it },
                 )
             }
         }
@@ -86,31 +92,36 @@ class ScheduleScreenRobotTest {
         composeRule.onNodeWithTag("schedule_enabled_work").performClick()
 
         // THEN
-        when (val intent = receivedIntent) {
-            is ScheduleListIntent.SetEnabled -> {
-                assertEquals(schedule, intent.schedule)
-                assertFalse(intent.enabled)
+        when (val action = receivedAction) {
+            is ScheduleListAction.SetScheduleEnabled -> {
+                assertEquals(schedule, action.schedule)
+                assertFalse(action.enabled)
             }
-            else -> fail("Expected a SetEnabled intent, but received $intent")
+            else -> fail("Expected SetScheduleEnabled, but received $action")
         }
     }
 
     @Test
     fun givenScheduleEditor_whenAppPickerAndPresetAreUsed_thenSelectedAppsAndIntentsAreShown() {
         // GIVEN
-        val mail = app("Mail")
-        val calendar = app("Calendar")
-        var receivedIntent: ScheduleEditorIntent? = null
+        val mail = installedApp("Mail")
+        val calendar = installedApp("Calendar")
+        var receivedAction: ScheduleEditorAction? = null
+        var editorState by mutableStateOf(
+            ScheduleEditorUiState(
+                selectedAppKeys = setOf(mail.key, calendar.key),
+                installedApps = listOf(mail, calendar),
+                isLoading = false,
+            ),
+        )
+
+        // WHEN
         composeRule.setContent {
             VoidLauncherTheme {
                 ScheduleEditorScreen(
-                    state = ScheduleEditorUiState(
-                        selectedAppKeys = setOf(mail.key, calendar.key),
-                        installedApps = listOf(mail, calendar),
-                        isLoading = false,
-                    ),
+                    state = editorState,
                     onBack = {},
-                    onIntent = { receivedIntent = it },
+                    onAction = { receivedAction = it },
                 )
             }
         }
@@ -136,32 +147,21 @@ class ScheduleScreenRobotTest {
         composeRule.onNodeWithTag("schedule_choose_apps_button").performScrollTo().performClick()
 
         // THEN
-        assertEquals(ScheduleEditorIntent.OpenAppPicker, receivedIntent)
+        assertEquals(ScheduleEditorAction.OpenAppPicker, receivedAction)
 
         // WHEN
         composeRule.onNodeWithTag("schedule_preset_Every day").performClick()
 
         // THEN
-        when (val intent = receivedIntent) {
-            is ScheduleEditorIntent.DaysChanged ->
-                assertEquals(DayOfWeek.entries.toSet(), intent.days)
-            else -> fail("Expected a DaysChanged intent, but received $intent")
+        when (val action = receivedAction) {
+            is ScheduleEditorAction.ChangeDays ->
+                assertEquals(DayOfWeek.entries.toSet(), action.days)
+            else -> fail("Expected ChangeDays, but received $action")
         }
 
-        // GIVEN
-        composeRule.setContent {
-            VoidLauncherTheme {
-                ScheduleEditorScreen(
-                    state = ScheduleEditorUiState(
-                        selectedAppKeys = setOf(mail.key, calendar.key),
-                        installedApps = listOf(mail, calendar),
-                        isAppPickerOpen = true,
-                        isLoading = false,
-                    ),
-                    onBack = {},
-                    onIntent = { receivedIntent = it },
-                )
-            }
+        // WHEN
+        composeRule.runOnIdle {
+            editorState = editorState.copy(isAppPickerOpen = true)
         }
 
         // THEN
@@ -172,21 +172,6 @@ class ScheduleScreenRobotTest {
         composeRule.onNodeWithTag("schedule_app_picker_done").performClick()
 
         // THEN
-        assertEquals(ScheduleEditorIntent.CloseAppPicker, receivedIntent)
+        assertEquals(ScheduleEditorAction.CloseAppPicker, receivedAction)
     }
-
-    private fun schedule() = AppSchedule(
-        id = "work",
-        name = "Work",
-        days = setOf(DayOfWeek.MONDAY),
-        startMinute = 9 * 60,
-        endMinute = 17 * 60,
-        appKeys = setOf(app("Mail").key),
-    )
-
-    private fun app(label: String) = InstalledApp(
-        key = AppKey("pkg.${label.lowercase()}", "Activity$label"),
-        label = label,
-        sortLabel = label.lowercase(),
-    )
 }

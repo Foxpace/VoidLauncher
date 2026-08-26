@@ -19,7 +19,7 @@ class AppErrorMessageMapper {
 
     fun recoveryMessage(context: Context, recovery: ErrorRecovery): String? = when (recovery) {
         ErrorRecovery.NONE,
-        ErrorRecovery.BROWSER_FALLBACK,
+        ErrorRecovery.WEB_SEARCH_PAGE,
         ErrorRecovery.STORE_WEBSITE,
         ErrorRecovery.MAPS_WEBSITE,
         -> null

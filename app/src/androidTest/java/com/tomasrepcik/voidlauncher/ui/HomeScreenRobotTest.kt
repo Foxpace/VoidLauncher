@@ -10,11 +10,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
-import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
+import com.tomasrepcik.voidlauncher.testing.installedApp
+import com.tomasrepcik.voidlauncher.testing.resolvedShortcut
 import com.tomasrepcik.voidlauncher.ui.drawer.AppDrawerScreen
 import com.tomasrepcik.voidlauncher.ui.drawer.AppDrawerActions
 import com.tomasrepcik.voidlauncher.ui.drawer.DrawerUiState
@@ -143,7 +142,7 @@ private class HomeRobot(
         private set
 
     fun launch(
-        homeApps: List<InstalledApp> = listOf(app("Signal"), app("Spotify")),
+        homeApps: List<InstalledApp> = listOf(installedApp("Signal"), installedApp("Spotify")),
         isScheduleActive: Boolean = false,
     ) {
         composeRule.setContent {
@@ -156,16 +155,8 @@ private class HomeRobot(
                         isScheduleActive = isScheduleActive,
                         isLoading = false,
                         shortcuts = listOf(
-                            ResolvedShortcut(
-                                slot = ShortcutSlot.LEFT,
-                                label = "Contacts",
-                                selection = ShortcutSelection.SystemContacts,
-                            ),
-                            ResolvedShortcut(
-                                slot = ShortcutSlot.RIGHT,
-                                label = "Camera",
-                                selection = ShortcutSelection.SystemCamera,
-                            ),
+                            resolvedShortcut(ShortcutSlot.LEFT),
+                            resolvedShortcut(ShortcutSlot.RIGHT),
                         ),
                     ),
                     appearance = HomeAppearanceState(),
@@ -175,7 +166,6 @@ private class HomeRobot(
                         onBrowserSearch = { browserSearchRequests += 1 },
                         onPlayStoreSearch = {},
                         onMapsSearch = {},
-                        onAppHint = {},
                         onAppClicked = { openedAppLabel = it.label },
                         onShortcutClicked = { openedShortcutSlot = it.slot },
                         onOpenDrawer = { drawerOpenRequests += 1 },
@@ -199,11 +189,9 @@ private class HomeRobot(
         composeRule.onNodeWithTag("home_play_store_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_maps_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_browser_button").assertIsDisplayed()
-        composeRule.onNodeWithTag("home_hint_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_keyboard_play_store_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_keyboard_maps_button").assertIsDisplayed()
         composeRule.onNodeWithTag("home_keyboard_browser_button").assertIsDisplayed()
-        composeRule.onNodeWithTag("home_keyboard_hint_button").assertIsDisplayed()
     }
 
     fun enterSearch(text: String) {
@@ -256,9 +244,9 @@ private class DrawerRobot(
                 AppDrawerScreen(
                     state = DrawerUiState(
                         apps = listOf(
-                            app("Camera"),
-                            app("Chrome"),
-                            app("Signal"),
+                            installedApp("Camera"),
+                            installedApp("Chrome"),
+                            installedApp("Signal"),
                         ),
                     ),
                     actions = AppDrawerActions(
@@ -289,12 +277,3 @@ private class DrawerRobot(
         composeRule.onNodeWithText(label).performClick()
     }
 }
-
-private fun app(label: String): InstalledApp = InstalledApp(
-    key = AppKey(
-        packageName = "pkg.${label.lowercase()}",
-        activityName = "Activity${label.lowercase()}",
-    ),
-    label = label,
-    sortLabel = label.lowercase(),
-)

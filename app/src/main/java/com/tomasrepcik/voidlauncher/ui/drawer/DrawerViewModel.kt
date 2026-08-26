@@ -2,17 +2,13 @@ package com.tomasrepcik.voidlauncher.ui.drawer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.tomasrepcik.voidlauncher.data.model.AppKey
-import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
-import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
-import com.tomasrepcik.voidlauncher.data.repository.RepositoryMutationOutcome
+import com.tomasrepcik.voidlauncher.data.repository.HomeAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.RepositoryWriteResult
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
-import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
-import com.tomasrepcik.voidlauncher.ui.sendOutcome
+import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
+import com.tomasrepcik.voidlauncher.ui.sendWriteResult
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,34 +18,32 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class DrawerUiState(
-    val query: String = "",
-    val apps: List<InstalledApp> = emptyList(),
-    val pinnedAppKeys: Set<AppKey> = emptySet(),
-    val isLoading: Boolean = true,
-)
-
 class DrawerViewModel(
-    private val repository: LauncherRepository,
+    installedApps: InstalledAppsRepository,
+    private val homeApps: HomeAppsRepository,
     installedAppSearch: InstalledAppSearch,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
-    private val effectChannel = Channel<LauncherUiEffect>(capacity = Channel.BUFFERED)
+    private val rootActionChannel = Channel<LauncherRootAction>(capacity = Channel.BUFFERED)
+    private val navigationChannel = Channel<DrawerNavigationEvent>(capacity = Channel.BUFFERED)
 
-    internal val effects = effectChannel.receiveAsFlow()
+    internal val rootActions = rootActionChannel.receiveAsFlow()
+    internal val navigation = navigationChannel.receiveAsFlow()
 
     val uiState: StateFlow<DrawerUiState> = combine(
-        repository.state,
+        installedApps.apps,
+        homeApps.data,
         query,
-    ) { repositoryState, currentQuery ->
-        val launcher = (repositoryState as? LauncherRepositoryState.Ready)?.launcher
-            ?: return@combine DrawerUiState(query = currentQuery, isLoading = true)
-        val filteredApps = installedAppSearch.filter(currentQuery, launcher.installedApps)
+    ) { currentApps, currentHomeApps, currentQuery ->
+        if (currentApps == null || currentHomeApps == null) {
+            return@combine DrawerUiState(query = currentQuery, isLoading = true)
+        }
+        val filteredApps = installedAppSearch.filter(currentQuery, currentApps)
         DrawerUiState(
             query = currentQuery,
             apps = filteredApps,
-            pinnedAppKeys = launcher.pinnedAppKeys,
+            pinnedAppKeys = currentHomeApps.keys,
             isLoading = false,
         )
     }.stateIn(
@@ -58,38 +52,24 @@ class DrawerViewModel(
         initialValue = DrawerUiState(isLoading = true),
     )
 
-    fun onQueryChange(value: String) {
-        query.value = value
-    }
-
-    fun onAppClicked(app: InstalledApp) {
-        viewModelScope.launch {
-            effectChannel.send(LauncherUiEffect.Action(LauncherAction.LaunchInstalledApp(app)))
+    fun onAction(action: DrawerAction) {
+        when (action) {
+            DrawerAction.Back -> navigationChannel.trySend(DrawerNavigationEvent.Back)
+            DrawerAction.OpenCustomization ->
+                navigationChannel.trySend(DrawerNavigationEvent.OpenCustomization)
+            is DrawerAction.QueryChanged -> query.value = action.value
+            is DrawerAction.OpenApp -> rootActionChannel.trySend(
+                LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(action.app)),
+            )
+            is DrawerAction.AddHomeApp -> runHomeAppWrite { homeApps.add(action.app.key) }
+            is DrawerAction.RemoveHomeApp -> runHomeAppWrite { homeApps.remove(action.app.key) }
+            is DrawerAction.UninstallApp -> rootActionChannel.trySend(
+                LauncherRootAction.Open(LauncherAction.UninstallApp(action.app)),
+            )
         }
     }
 
-    fun addHomeApp(app: InstalledApp) = mutate { repository.addHomeApp(app.key) }
-
-    fun removeHomeApp(app: InstalledApp) = mutate { repository.removeHomeApp(app.key) }
-
-    fun uninstallApp(app: InstalledApp) {
-        viewModelScope.launch {
-            effectChannel.send(LauncherUiEffect.Action(LauncherAction.UninstallApp(app)))
-        }
-    }
-
-    private fun mutate(mutation: suspend () -> RepositoryMutationOutcome) {
-        viewModelScope.launch { effectChannel.sendOutcome(mutation()) }
-    }
-
-    companion object {
-        fun provideFactory(
-            repository: LauncherRepository,
-            installedAppSearch: InstalledAppSearch,
-        ) = viewModelFactory {
-            initializer {
-                DrawerViewModel(repository, installedAppSearch)
-            }
-        }
+    private fun runHomeAppWrite(write: suspend () -> RepositoryWriteResult) {
+        viewModelScope.launch { rootActionChannel.sendWriteResult(write()) }
     }
 }

@@ -2,18 +2,17 @@ package com.tomasrepcik.voidlauncher.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
-import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
-import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
+import com.tomasrepcik.voidlauncher.data.repository.HomeAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.RepositoryWriteResult
+import com.tomasrepcik.voidlauncher.data.repository.ScheduleRepository
+import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.domain.search.SearchTarget
 import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
-import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
-import com.tomasrepcik.voidlauncher.ui.sendOutcome
+import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
+import com.tomasrepcik.voidlauncher.ui.sendWriteResult
 import java.time.LocalDateTime
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.currentCoroutineContext
@@ -31,49 +31,61 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-data class HomeUiState(
-    val query: String = "",
-    val homeApps: List<InstalledApp> = emptyList(),
-    val shortcuts: List<ResolvedShortcut> = emptyList(),
-    val hintMessage: String? = null,
-    val searchSuggestions: List<InstalledApp> = emptyList(),
-    val isScheduleActive: Boolean = false,
-    val isLoading: Boolean = true,
-)
-
 class HomeViewModel(
-    private val repository: LauncherRepository,
+    installedApps: InstalledAppsRepository,
+    private val homeApps: HomeAppsRepository,
+    shortcuts: ShortcutRepository,
+    schedules: ScheduleRepository,
     private val installedAppSearch: InstalledAppSearch,
     scheduleResolver: AppScheduleResolver = AppScheduleResolver(),
     currentTime: Flow<LocalDateTime> = flowOf(LocalDateTime.now()),
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
-    private val hintMessage = MutableStateFlow<String?>(null)
-    private val effectChannel = Channel<LauncherUiEffect>(capacity = Channel.BUFFERED)
+    private val rootActionChannel = Channel<LauncherRootAction>(capacity = Channel.BUFFERED)
+    private val navigationChannel = Channel<HomeNavigationEvent>(capacity = Channel.BUFFERED)
 
-    internal val effects = effectChannel.receiveAsFlow()
+    private val currentInstalledApps = installedApps.apps.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = null,
+    )
+
+    private val repositoryData = combine(
+        currentInstalledApps,
+        homeApps.data,
+        shortcuts.shortcuts,
+        schedules.schedules,
+    ) { currentApps, currentHomeApps, currentShortcuts, currentSchedules ->
+        HomeRepositoryData(currentApps, currentHomeApps, currentShortcuts, currentSchedules)
+    }
+
+    internal val rootActions = rootActionChannel.receiveAsFlow()
+    internal val navigation = navigationChannel.receiveAsFlow()
 
     val uiState: StateFlow<HomeUiState> = combine(
         query,
-        hintMessage,
-        repository.state,
+        repositoryData,
         currentTime,
-    ) { currentQuery, currentHint, repositoryState, now ->
-        val launcher = (repositoryState as? LauncherRepositoryState.Ready)?.launcher
-            ?: return@combine HomeUiState(query = currentQuery, isLoading = true)
+    ) { currentQuery, data, now ->
+        val installed = data.installedApps
+        val pinned = data.homeApps
+        val currentShortcuts = data.shortcuts
+        val currentSchedules = data.schedules
+        if (installed == null || pinned == null || currentShortcuts == null || currentSchedules == null) {
+            return@combine HomeUiState(query = currentQuery, isLoading = true)
+        }
         val scheduledApps = scheduleResolver.visibleApps(
-            defaultApps = launcher.pinnedHomeApps,
-            installedApps = launcher.installedApps,
-            schedules = launcher.schedules,
+            defaultApps = pinned.apps,
+            installedApps = installed,
+            schedules = currentSchedules,
             at = now,
         )
         HomeUiState(
             query = currentQuery,
             homeApps = scheduledApps.apps,
-            shortcuts = launcher.bottomShortcuts.sortedBy { it.slot.ordinal },
-            hintMessage = currentHint,
-            searchSuggestions = installedAppSearch.suggestions(currentQuery, launcher.installedApps),
+            shortcuts = currentShortcuts.sortedBy { it.slot.ordinal },
+            searchSuggestions = installedAppSearch.suggestions(currentQuery, installed),
             isScheduleActive = scheduledApps.isScheduleActive,
             isLoading = false,
         )
@@ -83,75 +95,68 @@ class HomeViewModel(
         initialValue = HomeUiState(isLoading = true),
     )
 
-    fun onQueryChange(value: String) {
+    fun onAction(action: HomeAction) {
+        when (action) {
+            HomeAction.OpenDrawer -> navigationChannel.trySend(HomeNavigationEvent.OpenDrawer)
+            HomeAction.OpenSchedules -> navigationChannel.trySend(HomeNavigationEvent.OpenSchedules)
+            is HomeAction.QueryChanged -> updateQuery(action.value)
+            is HomeAction.Search -> search(action.target)
+            is HomeAction.OpenApp -> emitNative(LauncherAction.LaunchInstalledApp(action.app))
+            is HomeAction.OpenShortcut -> emitNative(LauncherAction.OpenShortcut(action.shortcut))
+            is HomeAction.RemoveApp -> runHomeAppWrite { homeApps.remove(action.app.key) }
+            is HomeAction.RenameApp -> runHomeAppWrite {
+                homeApps.rename(action.app.key, action.label)
+            }
+            is HomeAction.ReorderApps -> runHomeAppWrite {
+                homeApps.reorder(action.fromIndex, action.toIndex)
+            }
+            is HomeAction.UninstallApp -> emitNative(LauncherAction.UninstallApp(action.app))
+        }
+    }
+
+    private fun updateQuery(value: String) {
         query.value = value
-        hintMessage.value = null
     }
 
-    fun onSearch(target: SearchTarget) {
-        val action = installedAppSearch.resolve(target, query.value, currentInstalledApps())
-        if (action == null) {
-            effectChannel.trySend(LauncherUiEffect.Feedback("Type a query first."))
-        } else {
-            effectChannel.trySend(LauncherUiEffect.Action(action))
+    private fun search(target: SearchTarget) {
+        val currentQuery = query.value
+        if (currentQuery.isBlank()) {
+            rootActionChannel.trySend(LauncherRootAction.ShowMessage("Type a query first."))
+            return
         }
-    }
-
-    fun onAppHint() {
-        val app = installedAppSearch.hint(query.value, currentInstalledApps())
-        if (app != null) {
-            hintMessage.value = "Try ${app.label}"
-            effectChannel.trySend(LauncherUiEffect.Feedback("Best app hint: ${app.label}"))
-        } else {
-            hintMessage.value = "No local app hint"
-            effectChannel.trySend(LauncherUiEffect.Feedback("No local app hint for that query."))
-        }
-    }
-
-    fun onAppClicked(app: InstalledApp) {
-        effectChannel.trySend(LauncherUiEffect.Action(LauncherAction.LaunchInstalledApp(app)))
-    }
-
-    fun onShortcutClicked(shortcut: ResolvedShortcut) {
-        effectChannel.trySend(LauncherUiEffect.Action(LauncherAction.OpenShortcut(shortcut)))
-    }
-
-    fun removeHomeApp(app: InstalledApp) {
-        viewModelScope.launch { effectChannel.sendOutcome(repository.removeHomeApp(app.key)) }
-    }
-
-    fun renameHomeApp(app: InstalledApp, newLabel: String?) {
         viewModelScope.launch {
-            effectChannel.sendOutcome(repository.renameHomeApp(app.key, newLabel))
+            val action = installedAppSearch.resolve(
+                target,
+                currentQuery,
+                currentInstalledApps.first { it != null }.orEmpty(),
+            )
+            if (action != null) rootActionChannel.send(LauncherRootAction.Open(action))
         }
     }
 
-    fun reorderHomeApps(fromIndex: Int, toIndex: Int) {
-        viewModelScope.launch {
-            effectChannel.sendOutcome(repository.reorderHomeApps(fromIndex, toIndex))
-        }
+    private fun emitNative(action: LauncherAction) {
+        rootActionChannel.trySend(LauncherRootAction.Open(action))
     }
 
-    fun uninstallApp(app: InstalledApp) {
-        effectChannel.trySend(LauncherUiEffect.Action(LauncherAction.UninstallApp(app)))
+    private fun runHomeAppWrite(write: suspend () -> RepositoryWriteResult) {
+        viewModelScope.launch { rootActionChannel.sendWriteResult(write()) }
     }
-
-    private fun currentInstalledApps(): List<InstalledApp> =
-        (repository.state.value as? LauncherRepositoryState.Ready)?.launcher?.installedApps.orEmpty()
 
     companion object {
-        fun provideFactory(
-            repository: LauncherRepository,
+        internal fun createForProduction(
+            installedApps: InstalledAppsRepository,
+            homeApps: HomeAppsRepository,
+            shortcuts: ShortcutRepository,
+            schedules: ScheduleRepository,
             installedAppSearch: InstalledAppSearch,
-        ) = viewModelFactory {
-            initializer {
-                HomeViewModel(
-                    repository = repository,
-                    installedAppSearch = installedAppSearch,
-                    currentTime = minuteTicks(),
-                )
-            }
-        }
+        ) = HomeViewModel(
+            installedApps = installedApps,
+            homeApps = homeApps,
+            shortcuts = shortcuts,
+            schedules = schedules,
+            installedAppSearch = installedAppSearch,
+            currentTime = minuteTicks(),
+        )
     }
 }
 

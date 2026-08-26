@@ -1,41 +1,51 @@
 package com.tomasrepcik.voidlauncher.domain.search
 
 import com.google.common.truth.Truth.assertThat
-import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
+import com.tomasrepcik.voidlauncher.testing.installedApp
 import org.junit.Test
 
 class InstalledAppSearchScenarioTest {
     private val search = InstalledAppSearch()
     private val apps = listOf(
-        app("Čas & Počasie"),
-        app("Signal"),
-        app("Signal Beta"),
-        app("Supercalifragilistic"),
-        app("Telegram"),
+        installedApp("Čas & Počasie"),
+        installedApp("Signal"),
+        installedApp("Signal Beta"),
+        installedApp("Supercalifragilistic"),
+        installedApp("Telegram"),
     )
 
     @Test
     fun givenNormalizedQueries_whenAppsAreFiltered_thenDrawerAndShortcutRulesMatch() {
+        // GIVEN
+        val normalizedQuery = "  POCASIE!! "
+        val substringQuery = "nal"
+        val blankQuery = "   "
+
+        // WHEN
+        val normalizedMatches = search.filter(normalizedQuery, apps)
+        val substringMatches = search.filter(substringQuery, apps)
+        val blankMatches = search.filter(blankQuery, apps)
+
         // THEN
-        assertThat(search.filter("  POCASIE!! ", apps).map(InstalledApp::label))
+        assertThat(normalizedMatches.map(InstalledApp::label))
             .containsExactly("Čas & Počasie")
-        assertThat(search.filter("nal", apps).map(InstalledApp::label))
+        assertThat(substringMatches.map(InstalledApp::label))
             .containsExactly("Signal", "Signal Beta").inOrder()
-        assertThat(search.filter("   ", apps)).containsExactlyElementsIn(apps).inOrder()
+        assertThat(blankMatches).containsExactlyElementsIn(apps).inOrder()
     }
 
     @Test
     fun givenMatchingApps_whenHomeSuggestionsAreRequested_thenResultsAreRankedAndLimited() {
         // GIVEN
         val suggestionApps = listOf(
-            app("Signal Beta"),
-            app("Signals"),
-            app("Signal"),
-            app("Sign"),
-            app("Sigil"),
-            app("Silo"),
+            installedApp("Signal Beta"),
+            installedApp("Signals"),
+            installedApp("Signal"),
+            installedApp("Sign"),
+            installedApp("Sigil"),
+            installedApp("Silo"),
         )
 
         // WHEN
@@ -47,53 +57,86 @@ class InstalledAppSearchScenarioTest {
     }
 
     @Test
-    fun givenExactPrefixAndFuzzyQueries_whenPrimaryActionIsResolved_thenMatchingAppsAreLaunched() {
+    fun givenExactPrefixAndFuzzyQueries_whenBestMatchIsResolved_thenMatchingAppsAreOpened() {
+        // GIVEN
+        val exactQuery = "cas pocasIE"
+        val prefixQuery = "tele"
+        val fuzzyQuery = "Supercalifragilistix"
+
+        // WHEN
+        val exactMatch = search.resolve(SearchTarget.BestMatch, exactQuery, apps)
+        val prefixMatch = search.resolve(SearchTarget.BestMatch, prefixQuery, apps)
+        val fuzzyMatch = search.resolve(SearchTarget.BestMatch, fuzzyQuery, apps)
+
         // THEN
-        assertThat(search.resolve(SearchTarget.Primary, "cas pocasIE", apps))
+        assertThat(exactMatch)
             .isEqualTo(LauncherAction.LaunchInstalledApp(apps[0]))
-        assertThat(search.resolve(SearchTarget.Primary, "tele", apps))
+        assertThat(prefixMatch)
             .isEqualTo(LauncherAction.LaunchInstalledApp(apps[4]))
-        assertThat(search.resolve(SearchTarget.Primary, "Supercalifragilistix", apps))
+        assertThat(fuzzyMatch)
             .isEqualTo(LauncherAction.LaunchInstalledApp(apps[3]))
     }
 
     @Test
-    fun givenAmbiguousOrDistantQuery_whenPrimaryActionIsResolved_thenWebSearchActionIsReturned() {
+    fun givenAmbiguousOrDistantQuery_whenBestMatchIsResolved_thenWebSearchIsReturned() {
+        // GIVEN
+        val ambiguousQuery = "sig"
+        val distantQuery = "best ramen nearby"
+
+        // WHEN
+        val ambiguousMatch = search.resolve(SearchTarget.BestMatch, ambiguousQuery, apps)
+        val distantMatch = search.resolve(SearchTarget.BestMatch, distantQuery, apps)
+
         // THEN
-        assertThat(search.resolve(SearchTarget.Primary, "sig", apps))
-            .isEqualTo(LauncherAction.OpenWebSearch("sig"))
-        assertThat(search.resolve(SearchTarget.Primary, "best ramen nearby", apps))
-            .isEqualTo(LauncherAction.OpenWebSearch("best ramen nearby"))
+        assertThat(ambiguousMatch).isEqualTo(LauncherAction.OpenWebSearch(ambiguousQuery))
+        assertThat(distantMatch).isEqualTo(LauncherAction.OpenWebSearch(distantQuery))
     }
 
     @Test
-    fun givenBlankOrUnmatchedQuery_whenSearchFeedbackIsResolved_thenNoActionOrHintIsReturned() {
+    fun givenBlankQuery_whenBestMatchIsResolved_thenNoActionIsReturned() {
+        // GIVEN
+        val query = "   "
+
+        // WHEN
+        val result = search.resolve(SearchTarget.BestMatch, query, apps)
+
         // THEN
-        assertThat(search.resolve(SearchTarget.Primary, "   ", apps)).isNull()
-        assertThat(search.hint("zzzzzz", apps)).isNull()
+        assertThat(result).isNull()
     }
 
     @Test
     fun givenDestinationQueries_whenActionsAreResolved_thenDestinationActionsAreReturnedDirectly() {
+        // GIVEN
+        val browserQuery = " Kotlin flows "
+        val storeQuery = " weather app "
+        val mapsQuery = " coffee nearby "
+
+        // WHEN
+        val browserAction = search.resolve(SearchTarget.Browser, browserQuery, apps)
+        val storeAction = search.resolve(SearchTarget.PlayStore, storeQuery, apps)
+        val mapsAction = search.resolve(SearchTarget.Maps, mapsQuery, apps)
+
         // THEN
-        assertThat(search.resolve(SearchTarget.Browser, " Kotlin flows ", apps))
+        assertThat(browserAction)
             .isEqualTo(LauncherAction.OpenWebSearch("Kotlin flows"))
-        assertThat(search.resolve(SearchTarget.PlayStore, " weather app ", apps))
+        assertThat(storeAction)
             .isEqualTo(LauncherAction.OpenPlayStoreSearch("weather app"))
-        assertThat(search.resolve(SearchTarget.Maps, " coffee nearby ", apps))
+        assertThat(mapsAction)
             .isEqualTo(LauncherAction.OpenMapsSearch("coffee nearby"))
     }
 
     @Test
     fun givenLabelsWithDiacriticsOrDigits_whenSectionLettersAreResolved_thenNormalizationIsApplied() {
-        // THEN
-        assertThat(search.sectionLetter("Škola")).isEqualTo('S')
-        assertThat(search.sectionLetter("123 Player")).isEqualTo('#')
-    }
+        // GIVEN
+        val diacriticLabel = "Škola"
+        val numericLabel = "123 Player"
 
-    private fun app(label: String) = InstalledApp(
-        key = AppKey("pkg.${label.lowercase()}", "Activity${label.lowercase()}"),
-        label = label,
-        sortLabel = label.lowercase(),
-    )
+        // WHEN
+        val diacriticSection = search.sectionLetter(diacriticLabel)
+        val numericSection = search.sectionLetter(numericLabel)
+
+        // THEN
+        assertThat(diacriticSection).isEqualTo('S')
+        assertThat(numericSection).isEqualTo('#')
+    }
 }

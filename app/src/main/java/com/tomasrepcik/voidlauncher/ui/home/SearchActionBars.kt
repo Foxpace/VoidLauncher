@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiObjects
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.Language
@@ -50,7 +49,6 @@ internal fun BoxScope.KeyboardSearchActions(
                     onPlayStoreSearch = actions.onPlayStoreSearch,
                     onMapsSearch = actions.onMapsSearch,
                     onBrowserSearch = actions.onBrowserSearch,
-                    onAppHint = actions.onAppHint,
                 ),
                 testTagPrefix = "home_keyboard",
             )
@@ -81,11 +79,6 @@ internal fun SearchActionButtons(
             onClick = actions.onBrowserSearch,
             testTag = "${testTagPrefix}_browser_button",
             icon = { Icon(Icons.Outlined.Language, stringResource(R.string.open_browser_search)) },
-        )
-        SearchActionButton(
-            onClick = actions.onAppHint,
-            testTag = "${testTagPrefix}_hint_button",
-            icon = { Icon(Icons.Filled.EmojiObjects, stringResource(R.string.show_app_hint)) },
         )
     }
 }

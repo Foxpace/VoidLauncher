@@ -83,9 +83,13 @@ class AppScheduleResolverTest {
         // GIVEN
         val allDay = schedule(startMinute = 0, endMinute = 0, apps = setOf(mail))
 
+        // WHEN
+        val selectedDayResult = allDay.isActiveAt(dateTime(DayOfWeek.MONDAY, 23, 59))
+        val unselectedDayResult = allDay.isActiveAt(dateTime(DayOfWeek.TUESDAY, 0))
+
         // THEN
-        assertThat(allDay.isActiveAt(dateTime(DayOfWeek.MONDAY, 23, 59))).isTrue()
-        assertThat(allDay.isActiveAt(dateTime(DayOfWeek.TUESDAY, 0))).isFalse()
+        assertThat(selectedDayResult).isTrue()
+        assertThat(unselectedDayResult).isFalse()
     }
 
     @Test

@@ -18,11 +18,6 @@ data class AppSchedule(
     val enabled: Boolean = true,
 )
 
-sealed interface ScheduleMutation {
-    data class Save(val schedule: AppSchedule) : ScheduleMutation
-    data class Delete(val id: String) : ScheduleMutation
-}
-
 /**
  * Owns the rules for overlapping, all-day, and overnight schedules.
  * Callers only choose the pinned apps, saved schedules, and point in time.

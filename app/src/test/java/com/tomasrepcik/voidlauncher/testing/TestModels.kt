@@ -8,6 +8,11 @@ import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.repository.InMemoryLauncherStorage
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
+import com.tomasrepcik.voidlauncher.data.repository.HomeAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.PreferencesRepository
+import com.tomasrepcik.voidlauncher.data.repository.ScheduleRepository
+import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherStorageSnapshot
 import com.tomasrepcik.voidlauncher.data.repository.StoredPinnedApp
 import com.tomasrepcik.voidlauncher.data.repository.StoredShortcut
@@ -22,13 +27,32 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
-fun installedApp(label: String): InstalledApp = InstalledApp(
+fun installedApp(
+    label: String,
+    packageName: String = "pkg.${label.lowercase()}",
+    activityName: String = "Activity${label.lowercase()}",
+): InstalledApp = InstalledApp(
     key = AppKey(
-        packageName = "pkg.${label.lowercase()}",
-        activityName = "Activity${label.lowercase()}",
+        packageName = packageName,
+        activityName = activityName,
     ),
     label = label,
     sortLabel = label.lowercase(),
+)
+
+fun appSchedule(
+    id: String = "work",
+    name: String = "Work",
+    apps: Iterable<InstalledApp> = emptyList(),
+    enabled: Boolean = true,
+): AppSchedule = AppSchedule(
+    id = id,
+    name = name,
+    days = setOf(java.time.DayOfWeek.MONDAY),
+    startMinute = 9 * 60,
+    endMinute = 17 * 60,
+    appKeys = apps.mapTo(mutableSetOf()) { it.key },
+    enabled = enabled,
 )
 
 fun resolvedShortcut(slot: ShortcutSlot): ResolvedShortcut = ResolvedShortcut(
@@ -79,6 +103,12 @@ fun TestScope.launcherRepository(
 
 fun LauncherRepository.readyState(): LauncherRepositoryState.Ready =
     state.value as LauncherRepositoryState.Ready
+
+fun LauncherRepository.installedAppsRepository() = InstalledAppsRepository(this)
+fun LauncherRepository.homeAppsRepository() = HomeAppsRepository(this)
+fun LauncherRepository.shortcutRepository() = ShortcutRepository(this)
+fun LauncherRepository.preferencesRepository() = PreferencesRepository(this)
+fun LauncherRepository.scheduleRepository() = ScheduleRepository(this)
 
 private class TestInstalledAppsDataSource(
     apps: List<InstalledApp>,

@@ -1,140 +1,134 @@
 package com.tomasrepcik.voidlauncher.domain.action
 
+import android.app.SearchManager
 import android.content.ActivityNotFoundException
-import android.content.Context
+import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.net.Uri
+import android.provider.ContactsContract
+import android.provider.MediaStore
+import android.provider.Settings
+import androidx.core.net.toUri
+import com.tomasrepcik.voidlauncher.data.model.InstalledApp
+import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
+import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CancellationException
 
-class LauncherActionExecutor {
-    fun execute(context: Context, action: LauncherAction): LauncherActionOutcome = execute(
-        action = action,
-        platform = AndroidLauncherActionPlatform(
-            packageManager = context.packageManager,
-            startActivity = context::startActivity,
-        ),
+/** Owns Android intent planning, fallback policy, recovery, and failure translation. */
+class LauncherActionExecutor internal constructor(
+    private val appLauncher: AppLauncher,
+) {
+    fun execute(action: LauncherAction): LauncherActionOutcome = runCatching {
+        executeAction(action)
+    }.fold(
+        onSuccess = { it },
+        onFailure = { cause ->
+            cause.rethrowIfCancellation()
+            failure(AppErrorKind.UNEXPECTED, action.operation, cause = cause)
+        },
     )
 
-    internal fun execute(
-        action: LauncherAction,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome = runCatching { executeAction(action, platform) }
-        .fold(
-            onSuccess = { it },
-            onFailure = { cause ->
-                cause.rethrowIfCancellation()
-                failure(
-                    kind = AppErrorKind.UNEXPECTED,
-                    operation = action.operation,
-                    cause = cause,
+    private fun executeAction(action: LauncherAction): LauncherActionOutcome = when (action) {
+        is LauncherAction.LaunchInstalledApp -> openDestination(
+            operation = AppOperation.LAUNCH_APP,
+            unavailableKind = AppErrorKind.APP_UNAVAILABLE,
+        ) { appLauncher.open(action.app.launchIntent()) }
+        is LauncherAction.OpenShortcut -> openShortcut(action)
+        is LauncherAction.OpenWebSearch -> openWebSearch(action)
+        is LauncherAction.OpenPlayStoreSearch -> openPlayStore(action)
+        is LauncherAction.OpenMapsSearch -> openMaps(action)
+        is LauncherAction.UninstallApp -> uninstall(action)
+    }
+
+    private fun openShortcut(action: LauncherAction.OpenShortcut): LauncherActionOutcome {
+        val intent = action.shortcut.launchIntent()
+            ?: return failure(AppErrorKind.APP_UNAVAILABLE, AppOperation.OPEN_SHORTCUT)
+        return openDestination(AppOperation.OPEN_SHORTCUT) { appLauncher.open(intent) }
+    }
+
+    private fun openWebSearch(action: LauncherAction.OpenWebSearch) =
+        openPreferredOrAlternativeDestination(
+            operation = AppOperation.SEARCH_WEB,
+            alternativeRecovery = ErrorRecovery.WEB_SEARCH_PAGE,
+            openPreferredDestination = {
+                appLauncher.open(
+                    Intent(Intent.ACTION_WEB_SEARCH).apply {
+                        putExtra(SearchManager.QUERY, action.query)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
                 )
+            },
+            openAlternativeDestination = {
+                val encodedQuery = URLEncoder.encode(action.query, StandardCharsets.UTF_8.toString())
+                appLauncher.open(webIntent("https://www.google.com/search?q=$encodedQuery"))
             },
         )
 
-    private fun executeAction(
-        action: LauncherAction,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome = when (action) {
-        is LauncherAction.LaunchInstalledApp -> attempt(
-            operation = AppOperation.LAUNCH_APP,
-            unavailableKind = AppErrorKind.APP_UNAVAILABLE,
-        ) {
-            platform.launchInstalledApp(action.app)
-        }
-        is LauncherAction.OpenShortcut -> openShortcut(action, platform)
-        is LauncherAction.OpenWebSearch -> openWebSearch(action, platform)
-        is LauncherAction.OpenPlayStoreSearch -> openPlayStore(action, platform)
-        is LauncherAction.OpenMapsSearch -> openMaps(action, platform)
-        is LauncherAction.UninstallApp -> uninstall(action, platform)
-    }
-
-    private fun openShortcut(
-        action: LauncherAction.OpenShortcut,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome {
-        val shortcut = action.shortcut
-        if (!shortcut.isAvailable) {
-            return failure(AppErrorKind.APP_UNAVAILABLE, AppOperation.OPEN_SHORTCUT)
-        }
-        return attempt(AppOperation.OPEN_SHORTCUT) { platform.openShortcut(shortcut) }
-    }
-
-    private fun openWebSearch(
-        action: LauncherAction.OpenWebSearch,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome = attemptWithFallback(
-        operation = AppOperation.SEARCH_WEB,
-        recovery = ErrorRecovery.BROWSER_FALLBACK,
-        primary = { platform.openWebSearch(action.query) },
-        fallback = { platform.openBrowserSearch(action.query) },
-    )
-
-    private fun openPlayStore(
-        action: LauncherAction.OpenPlayStoreSearch,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome = attemptWithFallback(
+    private fun openPlayStore(action: LauncherAction.OpenPlayStoreSearch) =
+        openPreferredOrAlternativeDestination(
         operation = AppOperation.SEARCH_STORE,
-        recovery = ErrorRecovery.STORE_WEBSITE,
-        primary = { platform.openPlayStore(action.query) },
-        fallback = { platform.openPlayStoreWebsite(action.query) },
+        alternativeRecovery = ErrorRecovery.STORE_WEBSITE,
+        openPreferredDestination = {
+            appLauncher.open(webIntent("market://search?q=${Uri.encode(action.query)}&c=apps"))
+        },
+        openAlternativeDestination = {
+            appLauncher.open(
+                webIntent("https://play.google.com/store/search?q=${Uri.encode(action.query)}&c=apps"),
+            )
+        },
     )
 
-    private fun openMaps(
-        action: LauncherAction.OpenMapsSearch,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome = attemptWithFallback(
+    private fun openMaps(action: LauncherAction.OpenMapsSearch) =
+        openPreferredOrAlternativeDestination(
         operation = AppOperation.SEARCH_MAPS,
-        recovery = ErrorRecovery.MAPS_WEBSITE,
-        primary = { platform.openMaps(action.query) },
-        fallback = { platform.openMapsWebsite(action.query) },
+        alternativeRecovery = ErrorRecovery.MAPS_WEBSITE,
+        openPreferredDestination = {
+            appLauncher.open(
+                webIntent("geo:0,0?q=${Uri.encode(action.query)}").apply {
+                    `package` = "com.google.android.apps.maps"
+                },
+            )
+        },
+        openAlternativeDestination = {
+            appLauncher.open(
+                webIntent("https://www.google.com/maps/search/?api=1&query=${Uri.encode(action.query)}"),
+            )
+        },
     )
 
-    private fun uninstall(
-        action: LauncherAction.UninstallApp,
-        platform: LauncherActionPlatform,
-    ): LauncherActionOutcome {
-        val flags = platform.applicationFlags(action.app.key.packageName)
+    private fun uninstall(action: LauncherAction.UninstallApp): LauncherActionOutcome {
+        val packageName = action.app.key.packageName
+        val flags = appLauncher.installedApplicationFlags(packageName)
             ?: return failure(AppErrorKind.APP_UNAVAILABLE, AppOperation.UNINSTALL_APP)
         if (!canUninstallFromLauncher(flags)) {
-            return recoverToAppInfo(action, platform, ErrorRecovery.SYSTEM_APP_INFO)
+            return recoverToAppInfo(packageName, ErrorRecovery.SYSTEM_APP_INFO)
         }
         return try {
-            if (platform.openUninstaller(action.app.key.packageName)) {
+            if (appLauncher.open(uninstallIntent(packageName))) {
                 LauncherActionOutcome.Completed
             } else {
-                recoverToAppInfo(
-                    action,
-                    platform,
-                    ErrorRecovery.UNINSTALL_UNAVAILABLE_APP_INFO,
-                )
+                recoverToAppInfo(packageName, ErrorRecovery.UNINSTALL_UNAVAILABLE_APP_INFO)
             }
         } catch (cause: SecurityException) {
-            recoverToAppInfo(
-                action,
-                platform,
-                ErrorRecovery.UNINSTALL_BLOCKED_APP_INFO,
-                cause,
-            )
+            recoverToAppInfo(packageName, ErrorRecovery.UNINSTALL_BLOCKED_APP_INFO, cause)
         } catch (cause: ActivityNotFoundException) {
-            recoverToAppInfo(
-                action,
-                platform,
-                ErrorRecovery.UNINSTALL_UNAVAILABLE_APP_INFO,
-                cause,
-            )
+            recoverToAppInfo(packageName, ErrorRecovery.UNINSTALL_UNAVAILABLE_APP_INFO, cause)
         }
     }
 
     private fun recoverToAppInfo(
-        action: LauncherAction.UninstallApp,
-        platform: LauncherActionPlatform,
+        packageName: String,
         recovery: ErrorRecovery,
         originalCause: Throwable? = null,
     ): LauncherActionOutcome = try {
-        if (platform.openAppInfo(action.app.key.packageName)) {
+        if (appLauncher.open(appInfoIntent(packageName))) {
             LauncherActionOutcome.Recovered(recovery)
         } else {
             failure(
@@ -147,60 +141,86 @@ class LauncherActionExecutor {
     } catch (cause: SecurityException) {
         failure(AppErrorKind.ACTION_BLOCKED, AppOperation.UNINSTALL_APP, recovery, cause)
     } catch (cause: ActivityNotFoundException) {
-        failure(
-            AppErrorKind.DESTINATION_UNAVAILABLE,
-            AppOperation.UNINSTALL_APP,
-            recovery,
-            cause,
-        )
+        failure(AppErrorKind.DESTINATION_UNAVAILABLE, AppOperation.UNINSTALL_APP, recovery, cause)
     }
 
-    private fun attempt(
+    private fun openDestination(
         operation: AppOperation,
         unavailableKind: AppErrorKind = AppErrorKind.DESTINATION_UNAVAILABLE,
-        launch: () -> Boolean,
+        openDestination: () -> Boolean,
     ): LauncherActionOutcome = try {
-        if (launch()) LauncherActionOutcome.Completed else failure(unavailableKind, operation)
+        if (openDestination()) {
+            LauncherActionOutcome.Completed
+        } else {
+            failure(unavailableKind, operation)
+        }
     } catch (cause: SecurityException) {
         failure(AppErrorKind.ACTION_BLOCKED, operation, cause = cause)
     } catch (cause: ActivityNotFoundException) {
         failure(unavailableKind, operation, cause = cause)
     }
 
-    private fun attemptWithFallback(
+    private fun openPreferredOrAlternativeDestination(
         operation: AppOperation,
-        recovery: ErrorRecovery,
-        primary: () -> Boolean,
-        fallback: () -> Boolean,
+        alternativeRecovery: ErrorRecovery,
+        openPreferredDestination: () -> Boolean,
+        openAlternativeDestination: () -> Boolean,
     ): LauncherActionOutcome {
-        var primaryCause: Throwable? = null
+        var preferredDestinationFailure: Throwable? = null
         try {
-            if (primary()) return LauncherActionOutcome.Completed
+            if (openPreferredDestination()) return LauncherActionOutcome.Completed
         } catch (cause: SecurityException) {
-            primaryCause = cause
+            preferredDestinationFailure = cause
         } catch (cause: ActivityNotFoundException) {
-            primaryCause = cause
+            preferredDestinationFailure = cause
         }
 
         return try {
-            if (fallback()) {
-                LauncherActionOutcome.Recovered(recovery)
+            if (openAlternativeDestination()) {
+                LauncherActionOutcome.Recovered(alternativeRecovery)
             } else {
                 failure(
                     AppErrorKind.DESTINATION_UNAVAILABLE,
                     operation,
-                    recovery,
-                    primaryCause,
+                    alternativeRecovery,
+                    preferredDestinationFailure,
                 )
             }
         } catch (cause: SecurityException) {
-            failure(AppErrorKind.ACTION_BLOCKED, operation, recovery, cause)
+            failure(AppErrorKind.ACTION_BLOCKED, operation, alternativeRecovery, cause)
         } catch (cause: ActivityNotFoundException) {
-            failure(AppErrorKind.DESTINATION_UNAVAILABLE, operation, recovery, cause)
+            failure(AppErrorKind.DESTINATION_UNAVAILABLE, operation, alternativeRecovery, cause)
         }
     }
-
 }
+
+private fun InstalledApp.launchIntent() = Intent().apply {
+    component = ComponentName(key.packageName, key.activityName)
+    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+}
+
+private fun ResolvedShortcut.launchIntent(): Intent? = when (selection) {
+    is ShortcutSelection.AppShortcut -> installedApp?.launchIntent()
+    ShortcutSelection.SystemCamera -> Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    ShortcutSelection.SystemContacts -> Intent(
+        Intent.ACTION_VIEW,
+        ContactsContract.Contacts.CONTENT_URI,
+    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+}
+
+private fun webIntent(uri: String) = Intent(Intent.ACTION_VIEW, uri.toUri())
+    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+private fun uninstallIntent(packageName: String) = Intent(
+    Intent.ACTION_DELETE,
+    Uri.fromParts("package", packageName, null),
+).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+private fun appInfoIntent(packageName: String) = Intent(
+    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+    Uri.fromParts("package", packageName, null),
+).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 private fun failure(
     kind: AppErrorKind,

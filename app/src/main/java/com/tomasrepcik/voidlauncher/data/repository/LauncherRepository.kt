@@ -4,17 +4,14 @@ import com.tomasrepcik.voidlauncher.data.local.LauncherDatabase
 import com.tomasrepcik.voidlauncher.data.model.AppKey
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
-import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
-import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.source.InstalledAppsDataSource
 import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
-import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -49,13 +46,13 @@ sealed interface LauncherRepositoryState {
     data class InitializationError(val error: AppError) : LauncherRepositoryState
 }
 
-sealed interface RepositoryMutationOutcome {
-    data object Completed : RepositoryMutationOutcome
-    data class Failed(val error: AppError) : RepositoryMutationOutcome
+sealed interface RepositoryWriteResult {
+    data object Completed : RepositoryWriteResult
+    data class Failed(val error: AppError) : RepositoryWriteResult
 }
 
 class LauncherRepository internal constructor(
-    private val storage: LauncherStorage,
+    internal val storage: LauncherStorage,
     private val installedAppsDataSource: InstalledAppsDataSource,
     private val scope: CoroutineScope,
 ) {
@@ -113,11 +110,7 @@ class LauncherRepository internal constructor(
         mutableState.value = LauncherRepositoryState.Loading
         scope.launch {
             try {
-                storage.initialize()
-                val initialSnapshot = storage.snapshots.first()
-                installedApps.value = initialSnapshot.installedApps
-                initialized = true
-                observeStorage()
+                initializeRepository()
             } catch (cause: StorageAccessException) {
                 mutableState.value = LauncherRepositoryState.InitializationError(
                     cause.toAppError(
@@ -131,42 +124,12 @@ class LauncherRepository internal constructor(
         }
     }
 
-    suspend fun saveHomeApps(apps: List<AppKey>) = performMutation(AppOperation.SAVE_HOME_APPS) {
-        storage.saveHomeApps(apps)
-    }
-
-    suspend fun addHomeApp(appKey: AppKey) = performMutation(AppOperation.ADD_HOME_APP) {
-        storage.addHomeApp(appKey)
-    }
-
-    suspend fun removeHomeApp(appKey: AppKey) = performMutation(AppOperation.REMOVE_HOME_APP) {
-        storage.removeHomeApp(appKey)
-    }
-
-    suspend fun reorderHomeApps(fromIndex: Int, toIndex: Int) = performMutation(AppOperation.REORDER_HOME_APPS) {
-        storage.reorderHomeApps(fromIndex, toIndex)
-    }
-
-    suspend fun renameHomeApp(appKey: AppKey, newLabel: String?) =
-        performMutation(AppOperation.RENAME_HOME_APP) {
-            storage.renameHomeApp(appKey, newLabel)
-        }
-
-    suspend fun saveShortcut(slot: ShortcutSlot, selection: ShortcutSelection) =
-        performMutation(AppOperation.SAVE_SHORTCUT) { storage.saveShortcut(slot, selection) }
-
-    suspend fun mutatePreferences(mutation: LauncherPreferencesMutation) =
-        performMutation(AppOperation.UPDATE_PREFERENCES) {
-            storage.mutatePreferences(mutation)
-        }
-
-    suspend fun mutateSchedule(mutation: ScheduleMutation) = performMutation(
-        operation = when (mutation) {
-            is ScheduleMutation.Save -> AppOperation.SAVE_SCHEDULE
-            is ScheduleMutation.Delete -> AppOperation.DELETE_SCHEDULE
-        },
-    ) {
-        storage.mutateSchedule(mutation)
+    private suspend fun initializeRepository() {
+        storage.initialize()
+        val initialSnapshot = storage.snapshots.first()
+        installedApps.value = initialSnapshot.installedApps
+        initialized = true
+        observeStorage()
     }
 
     private fun observeStorage() {
@@ -224,19 +187,23 @@ class LauncherRepository internal constructor(
     }
 }
 
-private suspend fun performMutation(
+internal suspend fun writeToStorage(
     operation: AppOperation,
-    mutation: suspend () -> Unit,
-): RepositoryMutationOutcome = try {
-    mutation()
-    RepositoryMutationOutcome.Completed
+    write: suspend () -> Unit,
+): RepositoryWriteResult = try {
+    completeStorageWrite(write)
 } catch (cause: StorageAccessException) {
-    RepositoryMutationOutcome.Failed(
+    RepositoryWriteResult.Failed(
         cause.toAppError(
             kind = AppErrorKind.STORAGE_WRITE_FAILED,
             operation = operation,
         ),
     )
+}
+
+private suspend fun completeStorageWrite(write: suspend () -> Unit): RepositoryWriteResult {
+    write()
+    return RepositoryWriteResult.Completed
 }
 
 private fun Throwable.rethrowIfCancellation() {

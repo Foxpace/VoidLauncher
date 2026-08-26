@@ -1,7 +1,5 @@
 package com.tomasrepcik.voidlauncher.ui.home.appearance
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,9 +28,6 @@ internal fun HomeAppearanceSettings(
     state: HomeAppearanceState,
     actions: HomeAppearanceActions,
 ) {
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.toString()?.let(actions.onBackgroundSelected)
-    }
     val hasBackground = state.backgroundUri != null
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -60,7 +55,7 @@ internal fun HomeAppearanceSettings(
 
             BackgroundActions(
                 hasBackground = hasBackground,
-                onPickBackground = { imagePicker.launch(arrayOf("image/*")) },
+                onPickBackground = actions.onChooseBackground,
                 onRestoreDefault = actions.onRestoreDefault,
             )
 

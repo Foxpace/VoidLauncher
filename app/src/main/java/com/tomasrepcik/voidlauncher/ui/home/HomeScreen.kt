@@ -29,14 +29,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -281,7 +273,7 @@ private fun BoxScope.HomeSearch(
             exit = shrinkVertically(),
         ) {
             SearchOverlay(
-                state = SearchOverlayState(state.isLoading, state.searchSuggestions, state.hintMessage),
+                state = SearchOverlayState(state.isLoading, state.searchSuggestions),
                 actions = SearchOverlayActions(
                     onSuggestionClicked = { app ->
                         actions.onQueryChange("")
@@ -290,17 +282,15 @@ private fun BoxScope.HomeSearch(
                     onPlayStoreSearch = actions.onPlayStoreSearch,
                     onMapsSearch = actions.onMapsSearch,
                     onBrowserSearch = actions.onBrowserSearch,
-                    onAppHint = actions.onAppHint,
                 ),
             )
         }
     }
 }
 
-private data class SearchOverlayState(
+internal data class SearchOverlayState(
     val isLoading: Boolean,
     val suggestions: List<InstalledApp>,
-    val hintMessage: String?,
 )
 
 internal data class SearchOverlayActions(
@@ -308,16 +298,15 @@ internal data class SearchOverlayActions(
     val onPlayStoreSearch: () -> Unit,
     val onMapsSearch: () -> Unit,
     val onBrowserSearch: () -> Unit,
-    val onAppHint: () -> Unit,
 )
 
-private data class HomeAppRowState(
+internal data class HomeAppRowState(
     val showActions: Boolean,
     val showMenu: Boolean,
     val isDragging: Boolean,
 )
 
-private data class HomeAppRowActions(
+internal data class HomeAppRowActions(
     val onClick: () -> Unit,
     val onRemove: () -> Unit,
     val onRename: () -> Unit,
@@ -456,59 +445,7 @@ private fun SearchOverlay(
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             SearchActionButtons(actions = actions, testTagPrefix = "home")
-
-            state.hintMessage?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-            )
-
-            if (state.suggestions.isNotEmpty()) {
-                state.suggestions.forEach { app ->
-                    key(app.key) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { actions.onSuggestionClicked(app) }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            AppIcon(
-                                app = app,
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp)),
-                            )
-                            Text(
-                                text = app.label,
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        }
-                    }
-                }
-            } else if (state.isLoading) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            } else {
-                Text(
-                    text = stringResource(R.string.no_matching_apps),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
+            SearchOverlayResults(state = state, actions = actions)
         }
     }
 }
@@ -579,52 +516,11 @@ private fun HomeAppRow(
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            AnimatedVisibility(visible = state.showActions) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(
-                        onClick = actions.onRemove,
-                        modifier = Modifier.testTag("home_app_remove_${app.label}"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.remove_from_home),
-                        )
-                    }
-                    Box {
-                        IconButton(
-                            onClick = { actions.onToggleMenu(true) },
-                            modifier = Modifier.testTag("home_app_more_${app.label}"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.MoreVert,
-                                contentDescription = stringResource(R.string.more_options),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = state.showMenu,
-                            onDismissRequest = { actions.onToggleMenu(false) },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.rename)) },
-                                onClick = {
-                                    actions.onToggleMenu(false)
-                                    actions.onRename()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.uninstall)) },
-                                onClick = {
-                                    actions.onToggleMenu(false)
-                                    actions.onUninstall()
-                                },
-                            )
-                        }
-                    }
-                }
-            }
+            HomeAppActionButtons(
+                appLabel = app.label,
+                state = state,
+                actions = actions,
+            )
         }
     }
 }

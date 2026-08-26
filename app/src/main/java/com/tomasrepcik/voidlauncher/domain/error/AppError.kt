@@ -41,7 +41,7 @@ enum class AppOperation {
 
 enum class ErrorRecovery {
     NONE,
-    BROWSER_FALLBACK,
+    WEB_SEARCH_PAGE,
     STORE_WEBSITE,
     MAPS_WEBSITE,
     SYSTEM_APP_INFO,

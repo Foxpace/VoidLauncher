@@ -1,14 +1,14 @@
 package com.tomasrepcik.voidlauncher.ui.home.appearance
 
 import com.google.common.truth.Truth.assertThat
-import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.PlannedRepositoryFailures
 import com.tomasrepcik.voidlauncher.testing.launcherRepository
+import com.tomasrepcik.voidlauncher.testing.preferencesRepository
 import com.tomasrepcik.voidlauncher.testing.readyState
 import com.tomasrepcik.voidlauncher.testing.startCollecting
-import com.tomasrepcik.voidlauncher.ui.LauncherUiEffect
+import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -28,29 +28,30 @@ class HomeAppearanceViewModelTest {
             // GIVEN
             val repository = launcherRepository()
             advanceUntilIdle()
-            repository.mutatePreferences(
-                LauncherPreferencesMutation.SetHomeBackground("content://images/first"),
-            )
-            repository.mutatePreferences(
-                LauncherPreferencesMutation.SetUseBackgroundColors(true),
-            )
+            val preferencesRepository = repository.preferencesRepository()
+            preferencesRepository.setHomeBackground("content://images/first")
+            preferencesRepository.setUseBackgroundColors(true)
             advanceUntilIdle()
             val taken = mutableListOf<String>()
             val released = mutableListOf<String>()
             val decoded = mutableListOf<String>()
-            val subject = HomeAppearanceViewModel.createForTest(
-                repository = repository,
-                takePermission = { uri -> taken += uri; true },
-                releasePermission = released::add,
-                decode = { uri -> decoded += uri; null },
+            val subject = HomeAppearanceViewModel(
+                preferences = preferencesRepository,
+                contentPermissions = RecordingContentPermissions(
+                    onKeep = { uri -> taken += uri; true },
+                    onRelease = released::add,
+                ),
+                backgroundImageReader = RecordingBackgroundImageReader(decoded::add),
             )
             startCollecting(subject.state)
             advanceUntilIdle()
 
             // WHEN
-            subject.selectBackground("content://images/second")
+            subject.onAction(
+                HomeAppearanceAction.SelectBackground("content://images/second"),
+            )
             advanceUntilIdle()
-            subject.setUseBackgroundColors(true)
+            subject.onAction(HomeAppearanceAction.SetUseBackgroundColors(true))
             advanceUntilIdle()
 
             // THEN
@@ -66,7 +67,7 @@ class HomeAppearanceViewModelTest {
             ).inOrder()
 
             // WHEN
-            subject.restoreDefault()
+            subject.onAction(HomeAppearanceAction.RestoreDefaultBackground)
             advanceUntilIdle()
 
             // THEN
@@ -88,22 +89,44 @@ class HomeAppearanceViewModelTest {
             )
             advanceUntilIdle()
             val released = mutableListOf<String>()
-            val subject = HomeAppearanceViewModel.createForTest(
-                repository = repository,
-                releasePermission = released::add,
+            val subject = HomeAppearanceViewModel(
+                preferences = repository.preferencesRepository(),
+                contentPermissions = RecordingContentPermissions(onRelease = released::add),
+                backgroundImageReader = RecordingBackgroundImageReader(),
             )
             startCollecting(subject.state)
-            val effect = async { subject.effects.first() }
+            val effect = async { subject.rootActions.first() }
 
             // WHEN
-            subject.selectBackground("content://images/new")
+            subject.onAction(HomeAppearanceAction.SelectBackground("content://images/new"))
             advanceUntilIdle()
 
             // THEN
             val preferences = repository.readyState().launcher.preferences
             assertThat(preferences.homeBackgroundUri).isNull()
             assertThat(released).containsExactly("content://images/new")
-            val error = effect.await() as LauncherUiEffect.Error
+            val error = effect.await() as LauncherRootAction.ShowError
             assertThat(error.error.kind).isEqualTo(AppErrorKind.STORAGE_WRITE_FAILED)
         }
+}
+
+private class RecordingContentPermissions(
+    private val onKeep: (String) -> Boolean = { true },
+    private val onRelease: (String) -> Unit = {},
+) : ContentPermissionManager {
+    override fun keepReadAccess(uri: String): Result<Unit> =
+        if (onKeep(uri)) Result.success(Unit) else Result.failure(
+            IllegalStateException("Read access was not kept"),
+        )
+
+    override fun releaseReadAccess(uri: String) = onRelease(uri)
+}
+
+private class RecordingBackgroundImageReader(
+    private val onRead: (String) -> Unit = {},
+) : BackgroundImageReader {
+    override suspend fun read(uri: String): HomeBackgroundImage? {
+        onRead(uri)
+        return null
+    }
 }

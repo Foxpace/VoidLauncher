@@ -3,19 +3,19 @@ package com.tomasrepcik.voidlauncher.data.repository
 import android.database.sqlite.SQLiteException
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
-import com.tomasrepcik.voidlauncher.data.model.LauncherPreferencesMutation
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
-import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
-import com.tomasrepcik.voidlauncher.domain.schedule.ScheduleMutation
 import com.tomasrepcik.voidlauncher.testing.PlannedRepositoryFailures
+import com.tomasrepcik.voidlauncher.testing.appSchedule
 import com.tomasrepcik.voidlauncher.testing.installedApp
 import com.tomasrepcik.voidlauncher.testing.launcherRepository
+import com.tomasrepcik.voidlauncher.testing.homeAppsRepository
+import com.tomasrepcik.voidlauncher.testing.preferencesRepository
 import com.tomasrepcik.voidlauncher.testing.readyState
+import com.tomasrepcik.voidlauncher.testing.scheduleRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import java.time.DayOfWeek
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LauncherRepositoryTest {
@@ -58,11 +58,11 @@ class LauncherRepositoryTest {
         val before = repository.readyState().launcher
 
         // WHEN
-        val outcome = repository.removeHomeApp(camera.key)
+        val outcome = repository.homeAppsRepository().remove(camera.key)
         advanceUntilIdle()
 
         // THEN
-        val failure = outcome as RepositoryMutationOutcome.Failed
+        val failure = outcome as RepositoryWriteResult.Failed
         val ready = repository.readyState()
         assertThat(failure.error.kind).isEqualTo(AppErrorKind.STORAGE_WRITE_FAILED)
         assertThat(failure.error.cause).isInstanceOf(SQLiteException::class.java)
@@ -70,38 +70,36 @@ class LauncherRepositoryTest {
     }
 
     @Test
-    fun givenReadyRepository_whenNamedMutationsRun_thenObservableLauncherStateIsUpdated() = runTest {
+    fun givenReadyRepository_whenNamedWritesRun_thenObservableLauncherStateIsUpdated() = runTest {
         // GIVEN
         val camera = installedApp("Camera")
         val maps = installedApp("Maps")
         val repository = launcherRepository(installedApps = listOf(camera, maps))
         advanceUntilIdle()
+        val homeApps = repository.homeAppsRepository()
+        val preferences = repository.preferencesRepository()
 
         // WHEN
-        repository.saveHomeApps(listOf(camera.key, maps.key, camera.key))
-        repository.renameHomeApp(maps.key, "Navigation")
-        repository.reorderHomeApps(1, 0)
-        repository.mutatePreferences(LauncherPreferencesMutation.SetHomeAppCount(100))
-        repository.mutatePreferences(
-            LauncherPreferencesMutation.SetHomeBackground("content://images/background")
-        )
-        repository.mutatePreferences(LauncherPreferencesMutation.SetUseBackgroundColors(true))
-        repository.mutatePreferences(LauncherPreferencesMutation.MarkNavigationTutorialSeen)
+        homeApps.save(listOf(camera.key, maps.key, camera.key))
+        homeApps.rename(maps.key, "Navigation")
+        homeApps.reorder(1, 0)
+        preferences.setHomeBackground("content://images/background")
+        preferences.setUseBackgroundColors(true)
+        preferences.markNavigationTutorialSeen()
         advanceUntilIdle()
 
         // THEN
         val launcher = repository.readyState().launcher
         assertThat(launcher.pinnedHomeApps.map { it.label })
             .containsExactly("Navigation", "Camera").inOrder()
-        assertThat(launcher.preferences.homeAppCount).isEqualTo(10)
         assertThat(launcher.preferences.homeBackgroundUri)
             .isEqualTo("content://images/background")
         assertThat(launcher.preferences.useBackgroundColors).isTrue()
         assertThat(launcher.preferences.hasSeenNavigationTutorial).isTrue()
 
         // WHEN
-        repository.mutatePreferences(LauncherPreferencesMutation.SetHomeBackground(null))
-        repository.mutatePreferences(LauncherPreferencesMutation.SetUseBackgroundColors(true))
+        preferences.setHomeBackground(null)
+        preferences.setUseBackgroundColors(true)
         advanceUntilIdle()
 
         // THEN
@@ -115,24 +113,18 @@ class LauncherRepositoryTest {
         val mail = installedApp("Mail")
         val repository = launcherRepository(installedApps = listOf(mail))
         advanceUntilIdle()
-        val schedule = AppSchedule(
-            id = "work",
-            name = "Work",
-            days = setOf(DayOfWeek.MONDAY),
-            startMinute = 9 * 60,
-            endMinute = 17 * 60,
-            appKeys = setOf(mail.key),
-        )
+        val schedule = appSchedule(apps = listOf(mail))
+        val schedules = repository.scheduleRepository()
 
         // WHEN
-        repository.mutateSchedule(ScheduleMutation.Save(schedule))
+        schedules.save(schedule)
         advanceUntilIdle()
 
         // THEN
         assertThat(repository.readyState().launcher.schedules).containsExactly(schedule)
 
         // WHEN
-        repository.mutateSchedule(ScheduleMutation.Delete(schedule.id))
+        schedules.delete(schedule.id)
         advanceUntilIdle()
 
         // THEN
