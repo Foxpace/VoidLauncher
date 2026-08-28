@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.tomasrepcik.voidlauncher.R
 
 @Composable
@@ -47,6 +49,10 @@ fun LauncherSearchField(
     fun submit() {
         dismiss()
         options.onSubmit?.invoke()
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+        dismiss()
     }
 
     OutlinedTextField(
