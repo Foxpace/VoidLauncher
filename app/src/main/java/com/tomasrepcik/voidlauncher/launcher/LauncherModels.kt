@@ -9,6 +9,7 @@ data class InstalledApp(
     val key: AppKey,
     val label: String,
     val sortLabel: String,
+    val packageRevision: Long = 0,
 )
 
 data class LauncherPreferences(

@@ -17,16 +17,25 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 class InstalledAppsDataSource(
     private val packageManager: PackageManager,
     private val launcherPackageName: String,
-    private val packageChanges: Flow<Unit>,
+    private val packageChanges: Flow<String>,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
+    private val nextPackageRevision = AtomicLong()
+    private val packageRevisions = ConcurrentHashMap<String, Long>()
+
     fun observeInstalledApps(): Flow<List<InstalledApp>> = packageChanges
-        .onStart { emit(Unit) }
-        .map {
+        .map<String, String?> { packageName -> packageName }
+        .onStart { emit(null) }
+        .map { changedPackageName ->
+            changedPackageName?.let { packageName ->
+                packageRevisions[packageName] = nextPackageRevision.incrementAndGet()
+            }
             withContext(ioDispatcher) { loadInstalledApps() }
         }
 
@@ -88,14 +97,16 @@ class InstalledAppsDataSource(
             ),
             label = label,
             sortLabel = label.lowercase(),
+            packageRevision = packageRevisions[activityInfo.packageName] ?: 0,
         )
     }
 }
 
-fun Context.observeInstalledAppChanges(): Flow<Unit> = callbackFlow {
+fun Context.observeInstalledAppChanges(): Flow<String> = callbackFlow {
     val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            trySend(Unit)
+            val packageName = intent?.data?.schemeSpecificPart ?: return
+            trySend(packageName)
         }
     }
 
@@ -108,7 +119,7 @@ fun Context.observeInstalledAppChanges(): Flow<Unit> = callbackFlow {
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
     } else {
         @Suppress("DEPRECATION")
         registerReceiver(receiver, filter)

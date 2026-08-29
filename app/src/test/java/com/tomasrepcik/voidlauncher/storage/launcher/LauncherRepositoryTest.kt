@@ -13,12 +13,31 @@ import com.tomasrepcik.voidlauncher.testing.preferencesRepository
 import com.tomasrepcik.voidlauncher.testing.readyState
 import com.tomasrepcik.voidlauncher.testing.scheduleRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LauncherRepositoryTest {
+    @Test
+    fun givenReinstalledApp_whenPackageRevisionChanges_thenCatalogueIsRefreshed() = runTest {
+        // GIVEN
+        val previousInstall = installedApp("Maps")
+        val installedAppUpdates = MutableStateFlow(listOf(previousInstall))
+        val repository = launcherRepository(installedAppUpdates = installedAppUpdates)
+        advanceUntilIdle()
+        val currentInstall = previousInstall.copy(packageRevision = 1)
+
+        // WHEN
+        installedAppUpdates.value = listOf(currentInstall)
+        advanceUntilIdle()
+
+        // THEN
+        assertThat(repository.readyState().launcher.installedApps)
+            .containsExactly(currentInstall)
+    }
+
     @Test
     fun givenInitializationFailure_whenInitializationIsRetried_thenDefaultsAreCreated() = runTest {
         // GIVEN

@@ -79,14 +79,15 @@ private fun rememberAppIconPainter(
     context: Context,
     appIconLoader: AppIconLoader,
 ): Painter? {
+    val cacheKey = app.iconCacheKey()
     val bitmap by produceState<ImageBitmap?>(
-        initialValue = AppIconBitmapCache.get(app.cacheKey())?.asImageBitmap(),
-        key1 = app.key,
+        initialValue = AppIconBitmapCache.get(cacheKey)?.asImageBitmap(),
+        key1 = cacheKey,
     ) {
-        if (value != null) {
-            return@produceState
+        value = AppIconBitmapCache.get(cacheKey)?.asImageBitmap()
+        if (value == null) {
+            value = appIconLoader.load(context, app)?.asImageBitmap()
         }
-        value = appIconLoader.load(context, app)?.asImageBitmap()
     }
     return bitmap?.let(::BitmapPainter)
 }
@@ -95,7 +96,7 @@ internal class AppIconLoader(
     private val ioDispatcher: CoroutineDispatcher,
 ) {
     suspend fun load(context: Context, app: InstalledApp): Bitmap? = withContext(ioDispatcher) {
-        val cacheKey = app.cacheKey()
+        val cacheKey = app.iconCacheKey()
         val cachedBitmap = AppIconBitmapCache.get(cacheKey)
         cachedBitmap ?: loadActivityIcon(context, app)?.toCachedBitmap(cacheKey)
     }
@@ -116,7 +117,8 @@ private fun Drawable.toCachedBitmap(cacheKey: String): Bitmap {
     return bitmap
 }
 
-private fun InstalledApp.cacheKey(): String = "${key.packageName}/${key.activityName}"
+internal fun InstalledApp.iconCacheKey(): String =
+    "${key.packageName}/${key.activityName}/$packageRevision"
 
 private object AppIconBitmapCache : LruCache<String, Bitmap>(ICON_CACHE_BYTES) {
     override fun sizeOf(
