@@ -14,7 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
+import com.tomasrepcik.voidlauncher.ui.components.LauncherSwitch
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleHeader
 import com.tomasrepcik.voidlauncher.ui.schedule.ScheduleScaffold
 import com.tomasrepcik.voidlauncher.ui.schedule.asTime
@@ -89,7 +89,7 @@ private fun ScheduleRow(
                     )
                     Text(schedule.name, style = MaterialTheme.typography.titleMedium)
                 }
-                Switch(
+                LauncherSwitch(
                     checked = schedule.enabled,
                     onCheckedChange = onEnabledChanged,
                     modifier = Modifier.testTag("schedule_enabled_${schedule.id}"),

@@ -2,6 +2,7 @@ package com.tomasrepcik.voidlauncher.ui.customization
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -84,31 +85,36 @@ private fun ShortcutEditorRow(
 
 @Composable
 private fun ShortcutVisual(shortcut: ResolvedShortcut) {
-    when (shortcut.selection) {
-        ShortcutSelection.SystemContacts -> Icon(
-            imageVector = Icons.Outlined.Person,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-        )
+    Box(
+        modifier = Modifier.size(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        when (shortcut.selection) {
+            ShortcutSelection.SystemContacts -> Icon(
+                imageVector = Icons.Outlined.Person,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
 
-        ShortcutSelection.SystemCamera -> Icon(
-            imageVector = Icons.Outlined.PhotoCamera,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-        )
+            ShortcutSelection.SystemCamera -> Icon(
+                imageVector = Icons.Outlined.PhotoCamera,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
 
-        is ShortcutSelection.AppShortcut -> {
-            shortcut.installedApp?.let { installedApp ->
-                AppIcon(
-                    app = installedApp,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp),
-                        )
-                        .padding(4.dp),
-                )
+            is ShortcutSelection.AppShortcut -> {
+                shortcut.installedApp?.let { installedApp ->
+                    AppIcon(
+                        app = installedApp,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                            .padding(4.dp),
+                    )
+                }
             }
         }
     }

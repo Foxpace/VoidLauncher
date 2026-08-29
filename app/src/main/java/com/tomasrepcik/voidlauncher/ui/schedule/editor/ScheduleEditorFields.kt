@@ -16,7 +16,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.ui.components.AppIcon
+import com.tomasrepcik.voidlauncher.ui.components.LauncherSwitch
 
 @Composable
 internal fun ScheduleSaveBar(
@@ -68,7 +68,7 @@ internal fun ScheduleEnabledField(
                 color = MaterialTheme.colorScheme.secondary,
             )
         }
-        Switch(
+        LauncherSwitch(
             checked = enabled,
             onCheckedChange = onEnabledChange,
         )

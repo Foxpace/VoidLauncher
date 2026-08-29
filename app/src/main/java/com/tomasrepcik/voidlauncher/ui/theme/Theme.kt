@@ -3,6 +3,8 @@ package com.tomasrepcik.voidlauncher.ui.theme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -138,6 +140,22 @@ private val VoidLauncherTypography = Typography(
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.6.sp,
+    ),
+)
+
+@Composable
+internal fun voidLauncherSwitchColors(): SwitchColors = SwitchDefaults.colors(
+    uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+    disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = 0.6f,
+    ),
+    disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+        alpha = 0.7f,
+    ),
+    disabledUncheckedBorderColor = MaterialTheme.colorScheme.outline.copy(
+        alpha = 0.7f,
     ),
 )
 
