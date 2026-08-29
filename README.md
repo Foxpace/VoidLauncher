@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/readme/logo.png" width="132" alt="VoidLauncher logo">
+  <img src="docs/images/readme/logo.png" width="132" alt="VoidLauncher app icon">
 </p>
 
 <h1 align="center">VoidLauncher</h1>
@@ -9,25 +9,25 @@
 </p>
 
 <p align="center">
-  <img alt="Android 10+" src="https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white">
-  <img alt="Kotlin 2.4.10" src="https://img.shields.io/badge/Kotlin-2.4.10-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white">
+  <img alt="Android 10+" src="https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&amp;logoColor=white">
+  <img alt="Kotlin 2.4.10" src="https://img.shields.io/badge/Kotlin-2.4.10-7F52FF?logo=kotlin&amp;logoColor=white">
+  <img alt="Jetpack Compose" src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpackcompose&amp;logoColor=white">
 </p>
 
 ## See it in use
 
 <table>
   <tr>
-    <td width="25%"><img src="docs/images/readme/home.png" alt="VoidLauncher Home with chosen apps, search, and bottom shortcuts"></td>
-    <td width="25%"><img src="docs/images/readme/drawer.png" alt="VoidLauncher app drawer with filtering and an alphabet rail"></td>
-    <td width="25%"><img src="docs/images/readme/schedule.png" alt="VoidLauncher schedule editor with weekdays and a time range"></td>
-    <td width="25%"><img src="docs/images/readme/customize.png" alt="VoidLauncher customization screen with Home background controls, shortcuts, schedules, and tutorial"></td>
+    <td width="25%"><img src="docs/images/readme/home.png" alt="VoidLauncher Home"></td>
+    <td width="25%"><img src="docs/images/readme/drawer.png" alt="VoidLauncher app drawer"></td>
+    <td width="25%"><img src="docs/images/readme/schedule.png" alt="VoidLauncher schedule editor"></td>
+    <td width="25%"><img src="docs/images/readme/customize.png" alt="VoidLauncher customization"></td>
   </tr>
   <tr>
     <td align="center"><sub>Home shows the apps chosen for now.</sub></td>
-    <td align="center"><sub>Filter every installed app by name or letter.</sub></td>
-    <td align="center"><sub>Schedules choose what appears and when.</sub></td>
-    <td align="center"><sub>Customize the background, shortcuts, schedules, and tutorial.</sub></td>
+    <td align="center"><sub>Every installed app stays one swipe away.</sub></td>
+    <td align="center"><sub>Schedules change what appears and when.</sub></td>
+    <td align="center"><sub>Choose the background, shortcuts, and tutorial.</sub></td>
   </tr>
 </table>
 
@@ -35,92 +35,41 @@
 
 Most launchers treat every installed app as equally urgent. VoidLauncher does not.
 
-Home is a short list that you control. The complete app drawer is still one swipe away, and search can open an app or send a query to the browser, Play Store, or Maps. App schedules change the visible Home list by weekday and time. They decide what is prominent, never what remains accessible.
+Home is a short list that you control. The full drawer stays one swipe away, and schedules can change the Home list by weekday and time. They decide what is prominent, never what remains accessible.
 
-Home can use a background image and tint its controls from the image colors. The first-run tutorial explains the gestures, bottom shortcuts, and schedules, and it can be opened again from customization.
-
-The app keeps its launcher state in a local Room database. It asks for no internet permission, account, or cloud service.
+The launcher asks for no internet permission, account, or cloud service.
 
 ## What it does
 
-- Keeps a small, reorderable list of apps on Home
-- Searches installed apps and hands web queries to the appropriate Android app
-- Opens the app drawer with a left swipe and focuses search with a swipe up from the bottom edge
-- Filters the full app drawer and jumps by letter with an alphabet rail
+- Keeps a small, reorderable Home list
+- Searches installed apps or hands a query to the browser, Play Store, or Maps
+- Filters the full drawer and jumps by letter
 - Renames, adds, removes, or uninstalls apps from launcher menus
-- Assigns the two bottom shortcuts to Contacts, Camera, or an installed app
-- Uses a selected image as the Home background, with optional image-derived colors
-- Schedules different Home app sets for selected days and time ranges, including overnight and all-day schedules
-- Shows a replayable tutorial for gestures, shortcuts, and schedules
-
-## Build it
-
-You need JDK 17 and an Android SDK with API 37 installed. VoidLauncher supports Android 10 and newer.
-
-```bash
-git clone https://github.com/Foxpace/VoidLauncher.git
-cd VoidLauncher
-./gradlew :app:assembleDebug
-```
-
-Install the debug build on a connected device:
-
-```bash
-./gradlew :app:installDebug
-```
-
-Android will then let you select VoidLauncher when you press Home. You can also choose it under the system's default Home app setting.
-
-Run the local checks before opening a pull request:
-
-```bash
-./gradlew check
-```
-
-UI tests need a connected device or emulator:
-
-```bash
-./gradlew connectedDebugAndroidTest
-```
-
-## Regenerate the README images
-
-The logo and all four screenshots above are generated by one script. The screenshots are host-rendered Compose previews with fixed sample apps, mock icons, shortcuts, and a weekday schedule. They need no phone, emulator, or private app list. The script updates the preview references, strips image metadata, and writes GitHub-sized PNGs to `docs/images/readme/`.
-
-Requirements:
-
-- ImageMagick, with `magick` available on `PATH`
-- The same JDK 17 and Android SDK used to build the app
-
-```bash
-./scripts/generate-readme-assets.sh
-```
-
-To rebuild only the logo from `design/void-launcher-icon.svg`:
-
-```bash
-./scripts/generate-readme-assets.sh --logo-only
-```
-
-The preview definitions and their sample launcher state live in `app/src/screenshotTest/kotlin/com/tomasrepcik/voidlauncher/ReadmeScreenshotPreviews.kt`. Edit that file when a README screen or its sample content should change.
+- Assigns two bottom shortcuts to Contacts, Camera, or another app
+- Uses a chosen Home image with optional image-derived colors
+- Schedules different Home lists, including overnight and all-day ranges
+- Explains its gestures and shortcuts in a replayable tutorial
 
 ## How it is built
 
-Each screen has a feature root, immutable UI state, a ViewModel, and Compose content. Compose renders state and sends user actions back to the ViewModel. Feature roots translate Navigation 3 events and delegate Android actions to a shared handler.
+Each feature has a root, immutable state, a ViewModel, and Compose content. Compose sends actions back to the ViewModel; feature roots own navigation and Android effects. Koin supplies repositories and adapters. Room stores one local launcher snapshot behind narrow repository contracts.
 
-Koin constructs every repository, ViewModel, domain rule, and Android adapter. It also provides dispatchers, the clock, and the app-owned coroutine scope. Feature ViewModels depend on narrow repositories for installed apps, Home apps, shortcuts, preferences, schedules, and startup status. Room stores one coherent launcher snapshot behind those repository contracts.
+| Path | Purpose |
+| --- | --- |
+| `app/src/main/java/.../domain` | Launcher actions, search rules, and schedules |
+| `app/src/main/java/.../data` | Installed apps, Room storage, and repositories |
+| `app/src/main/java/.../ui` | Compose screens, gestures, state, and navigation |
+| `app/src/test` | JVM behavior and state tests |
+| `app/src/androidTest` | Device-level Compose tests |
 
-## Project map
+## Build it
 
-| Path                           | Purpose                                                         |
-| ------------------------------ | --------------------------------------------------------------- |
-| `app/src/main/java/.../domain` | Launcher actions, search rules, errors, and schedule resolution |
-| `app/src/main/java/.../data`   | Installed-app discovery, Room storage, and repository state     |
-| `app/src/main/java/.../ui`     | Compose screens, gestures, view models, and Navigation 3 routes |
-| `app/src/test`                 | JVM behavior and state tests                                    |
-| `app/src/androidTest`          | Device-level Compose UI tests                                   |
-| `design`                       | Source artwork for the launcher icon                            |
-| `docs/adr`                     | Architecture decisions                                          |
-| `scripts`                      | Reproducible documentation tooling                              |
+You need JDK 17 and an Android SDK with API 37. VoidLauncher supports Android 10 and newer.
 
-VoidLauncher is built with Kotlin, Jetpack Compose, Material 3, Navigation 3, Room, Koin, coroutines, and Detekt.
+```bash
+./gradlew :app:assembleDebug
+./gradlew :app:installDebug
+./gradlew check
+```
+
+Android will offer VoidLauncher the next time you press Home.
