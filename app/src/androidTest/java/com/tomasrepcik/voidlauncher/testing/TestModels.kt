@@ -1,11 +1,11 @@
 package com.tomasrepcik.voidlauncher.testing
 
-import com.tomasrepcik.voidlauncher.data.model.AppKey
-import com.tomasrepcik.voidlauncher.data.model.InstalledApp
-import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
-import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
-import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
-import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
+import com.tomasrepcik.voidlauncher.launcher.AppKey
+import com.tomasrepcik.voidlauncher.launcher.InstalledApp
+import com.tomasrepcik.voidlauncher.launcher.ResolvedShortcut
+import com.tomasrepcik.voidlauncher.launcher.ShortcutSelection
+import com.tomasrepcik.voidlauncher.launcher.ShortcutSlot
+import com.tomasrepcik.voidlauncher.schedule.data.AppSchedule
 
 fun installedApp(
     label: String,
