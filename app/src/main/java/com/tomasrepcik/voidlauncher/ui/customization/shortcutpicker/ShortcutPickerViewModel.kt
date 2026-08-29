@@ -28,9 +28,7 @@ class ShortcutPickerViewModel(
     private val query = MutableStateFlow("")
     private val saving = MutableStateFlow(false)
     private val rootActionChannel = Channel<LauncherRootAction>(Channel.BUFFERED)
-    private val navigationChannel = Channel<ShortcutPickerNavigationEvent>(Channel.BUFFERED)
     internal val rootActions = rootActionChannel.receiveAsFlow()
-    internal val navigation = navigationChannel.receiveAsFlow()
 
     val uiState: StateFlow<ShortcutPickerUiState> = combine(
         installedApps.apps,
@@ -59,7 +57,7 @@ class ShortcutPickerViewModel(
     fun onAction(action: ShortcutPickerAction) {
         when (action) {
             ShortcutPickerAction.Back ->
-                navigationChannel.trySend(ShortcutPickerNavigationEvent.Back)
+                rootActionChannel.trySend(LauncherRootAction.CloseScreen)
             is ShortcutPickerAction.QueryChanged -> query.value = action.value
             is ShortcutPickerAction.SelectApp -> select(ShortcutSelection.AppShortcut(action.app.key))
             ShortcutPickerAction.SelectContacts -> select(ShortcutSelection.SystemContacts)

@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
-import com.tomasrepcik.voidlauncher.data.repository.ShortcutStorage
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.installedApp
@@ -16,7 +15,6 @@ import com.tomasrepcik.voidlauncher.testing.startCollecting
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPickerViewModel
 import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPickerAction
-import com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker.ShortcutPickerNavigationEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -46,14 +44,14 @@ class CustomizationViewModelTest {
                 shortcuts = repository.shortcutRepository(),
                 installedAppSearch = InstalledAppSearch(),
             )
-            val navigation = async { subject.navigation.first() }
+            val rootAction = async { subject.rootActions.first() }
 
             // WHEN
             subject.onAction(ShortcutPickerAction.Back)
             advanceUntilIdle()
 
             // THEN
-            assertThat(navigation.await()).isEqualTo(ShortcutPickerNavigationEvent.Back)
+            assertThat(rootAction.await()).isEqualTo(LauncherRootAction.CloseScreen)
         }
 
     @Test
@@ -140,7 +138,7 @@ class CustomizationViewModelTest {
             val subject = ShortcutPickerViewModel(
                 slot = ShortcutSlot.LEFT,
                 installedApps = repository.installedAppsRepository(),
-                shortcuts = ShortcutRepository(repository, storage),
+                shortcuts = ShortcutRepository(repository) { _, _ -> storage.saveShortcut() },
                 installedAppSearch = InstalledAppSearch(),
             )
             startCollecting(subject.uiState)
@@ -165,15 +163,12 @@ class CustomizationViewModelTest {
         }
 }
 
-private class BlockingShortcutStorage : ShortcutStorage {
+private class BlockingShortcutStorage {
     private val saveFinished = CompletableDeferred<Unit>()
     var saveCount: Int = 0
         private set
 
-    override suspend fun saveShortcut(
-        slot: ShortcutSlot,
-        selection: ShortcutSelection,
-    ) {
+    suspend fun saveShortcut() {
         saveCount += 1
         saveFinished.await()
     }

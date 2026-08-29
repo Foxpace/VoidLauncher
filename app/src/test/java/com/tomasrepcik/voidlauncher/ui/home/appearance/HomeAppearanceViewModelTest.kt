@@ -36,13 +36,16 @@ class HomeAppearanceViewModelTest {
             val taken = mutableListOf<String>()
             val released = mutableListOf<String>()
             val decoded = mutableListOf<String>()
+            val contentPermissions = RecordingContentPermissions(
+                onKeep = { uri -> taken += uri; true },
+                onRelease = released::add,
+            )
+            val backgroundImageReader = RecordingBackgroundImageReader(decoded::add)
             val subject = HomeAppearanceViewModel(
                 preferences = preferencesRepository,
-                contentPermissions = RecordingContentPermissions(
-                    onKeep = { uri -> taken += uri; true },
-                    onRelease = released::add,
-                ),
-                backgroundImageReader = RecordingBackgroundImageReader(decoded::add),
+                keepBackgroundReadAccess = contentPermissions::keepReadAccess,
+                releaseBackgroundReadAccess = contentPermissions::releaseReadAccess,
+                readBackground = backgroundImageReader::read,
             )
             startCollecting(subject.state)
             advanceUntilIdle()
@@ -90,10 +93,13 @@ class HomeAppearanceViewModelTest {
             )
             advanceUntilIdle()
             val released = mutableListOf<String>()
+            val contentPermissions = RecordingContentPermissions(onRelease = released::add)
+            val backgroundImageReader = RecordingBackgroundImageReader()
             val subject = HomeAppearanceViewModel(
                 preferences = repository.preferencesRepository(),
-                contentPermissions = RecordingContentPermissions(onRelease = released::add),
-                backgroundImageReader = RecordingBackgroundImageReader(),
+                keepBackgroundReadAccess = contentPermissions::keepReadAccess,
+                releaseBackgroundReadAccess = contentPermissions::releaseReadAccess,
+                readBackground = backgroundImageReader::read,
             )
             startCollecting(subject.state)
             val effect = async { subject.rootActions.first() }
@@ -120,13 +126,16 @@ class HomeAppearanceViewModelTest {
             preferencesRepository.setHomeBackground("content://images/existing")
             advanceUntilIdle()
             val released = mutableListOf<String>()
+            val contentPermissions = RecordingContentPermissions(
+                onKeep = { false },
+                onRelease = released::add,
+            )
+            val backgroundImageReader = RecordingBackgroundImageReader()
             val subject = HomeAppearanceViewModel(
                 preferences = preferencesRepository,
-                contentPermissions = RecordingContentPermissions(
-                    onKeep = { false },
-                    onRelease = released::add,
-                ),
-                backgroundImageReader = RecordingBackgroundImageReader(),
+                keepBackgroundReadAccess = contentPermissions::keepReadAccess,
+                releaseBackgroundReadAccess = contentPermissions::releaseReadAccess,
+                readBackground = backgroundImageReader::read,
             )
             startCollecting(subject.state)
             advanceUntilIdle()
@@ -150,19 +159,19 @@ class HomeAppearanceViewModelTest {
 private class RecordingContentPermissions(
     private val onKeep: (String) -> Boolean = { true },
     private val onRelease: (String) -> Unit = {},
-) : ContentPermissionManager {
-    override fun keepReadAccess(uri: String): Result<Unit> =
+) {
+    fun keepReadAccess(uri: String): Result<Unit> =
         if (onKeep(uri)) Result.success(Unit) else Result.failure(
             IllegalStateException("Read access was not kept"),
         )
 
-    override fun releaseReadAccess(uri: String) = onRelease(uri)
+    fun releaseReadAccess(uri: String) = onRelease(uri)
 }
 
 private class RecordingBackgroundImageReader(
     private val onRead: (String) -> Unit = {},
-) : BackgroundImageReader {
-    override suspend fun read(uri: String): HomeBackgroundImage? {
+) {
+    fun read(uri: String): HomeBackgroundImage? {
         onRead(uri)
         return null
     }

@@ -24,8 +24,9 @@ import kotlinx.coroutines.sync.withLock
 
 internal class HomeAppearanceViewModel(
     private val preferences: PreferencesRepository,
-    private val contentPermissions: ContentPermissionManager,
-    private val backgroundImageReader: BackgroundImageReader,
+    private val keepBackgroundReadAccess: (String) -> Result<Unit>,
+    private val releaseBackgroundReadAccess: (String) -> Unit,
+    private val readBackground: suspend (String) -> HomeBackgroundImage?,
 ) : ViewModel() {
     private val backgroundChangeLock = Mutex()
     private val mutableState = MutableStateFlow(HomeAppearanceState())
@@ -65,7 +66,7 @@ internal class HomeAppearanceViewModel(
 
     private suspend fun persistBackground(uri: String?) {
         val previousUri = mutableState.value.backgroundUri
-        val accessResult = uri?.let(contentPermissions::keepReadAccess)
+        val accessResult = uri?.let(keepBackgroundReadAccess)
         if (accessResult?.isFailure == true) {
             rootActionChannel.send(
                 LauncherRootAction.ShowError(backgroundAccessError(accessResult.exceptionOrNull())),
@@ -74,10 +75,10 @@ internal class HomeAppearanceViewModel(
         }
         when (val result = preferences.setHomeBackground(uri)) {
             RepositoryWriteResult.Completed -> {
-                if (previousUri != uri) previousUri?.let(contentPermissions::releaseReadAccess)
+                if (previousUri != uri) previousUri?.let(releaseBackgroundReadAccess)
             }
             is RepositoryWriteResult.Failed -> {
-                if (uri != null && previousUri != uri) contentPermissions.releaseReadAccess(uri)
+                if (uri != null && previousUri != uri) releaseBackgroundReadAccess(uri)
                 rootActionChannel.send(LauncherRootAction.ShowError(result.error))
             }
         }
@@ -101,7 +102,7 @@ internal class HomeAppearanceViewModel(
         )
         if (!uriChanged) return
 
-        val loaded = preferences.homeBackgroundUri?.let { backgroundImageReader.read(it) }
+        val loaded = preferences.homeBackgroundUri?.let { readBackground(it) }
         mutableState.update { state ->
             if (state.backgroundUri == preferences.homeBackgroundUri) {
                 state.copy(background = loaded, isLoadingBackground = false)

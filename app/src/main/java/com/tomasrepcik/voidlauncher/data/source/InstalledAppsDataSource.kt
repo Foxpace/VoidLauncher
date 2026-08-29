@@ -18,24 +18,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 
-interface InstalledAppsDataSource {
-    fun observeInstalledApps(): Flow<List<InstalledApp>>
-    suspend fun getInstalledApp(appKey: AppKey): InstalledApp?
-}
-
-class PackageManagerInstalledAppsDataSource(
+class InstalledAppsDataSource(
     private val packageManager: PackageManager,
     private val launcherPackageName: String,
     private val packageChanges: Flow<Unit>,
     private val ioDispatcher: CoroutineDispatcher,
-) : InstalledAppsDataSource {
-    override fun observeInstalledApps(): Flow<List<InstalledApp>> = packageChanges
+) {
+    fun observeInstalledApps(): Flow<List<InstalledApp>> = packageChanges
         .onStart { emit(Unit) }
         .map {
             withContext(ioDispatcher) { loadInstalledApps() }
         }
 
-    override suspend fun getInstalledApp(appKey: AppKey): InstalledApp? = withContext(ioDispatcher) {
+    suspend fun getInstalledApp(appKey: AppKey): InstalledApp? = withContext(ioDispatcher) {
         try {
             loadInstalledApp(appKey)
         } catch (_: PackageManager.NameNotFoundException) {

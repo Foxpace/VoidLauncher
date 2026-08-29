@@ -23,7 +23,8 @@ import kotlinx.coroutines.CancellationException
 
 /** Owns Android intent planning, fallback policy, recovery, and failure translation. */
 class LauncherActionExecutor internal constructor(
-    private val appLauncher: AppLauncher,
+    private val openApp: (Intent) -> Boolean,
+    private val installedApplicationFlags: (String) -> Int?,
 ) {
     fun execute(action: LauncherAction): LauncherActionOutcome = runCatching {
         executeAction(action)
@@ -39,7 +40,7 @@ class LauncherActionExecutor internal constructor(
         is LauncherAction.LaunchInstalledApp -> openDestination(
             operation = AppOperation.LAUNCH_APP,
             unavailableKind = AppErrorKind.APP_UNAVAILABLE,
-        ) { appLauncher.open(action.app.launchIntent()) }
+        ) { openApp(action.app.launchIntent()) }
         is LauncherAction.OpenShortcut -> openShortcut(action)
         is LauncherAction.OpenWebSearch -> openWebSearch(action)
         is LauncherAction.OpenPlayStoreSearch -> openPlayStore(action)
@@ -50,7 +51,7 @@ class LauncherActionExecutor internal constructor(
     private fun openShortcut(action: LauncherAction.OpenShortcut): LauncherActionOutcome {
         val intent = action.shortcut.launchIntent()
             ?: return failure(AppErrorKind.APP_UNAVAILABLE, AppOperation.OPEN_SHORTCUT)
-        return openDestination(AppOperation.OPEN_SHORTCUT) { appLauncher.open(intent) }
+        return openDestination(AppOperation.OPEN_SHORTCUT) { openApp(intent) }
     }
 
     private fun openWebSearch(action: LauncherAction.OpenWebSearch) =
@@ -58,7 +59,7 @@ class LauncherActionExecutor internal constructor(
             operation = AppOperation.SEARCH_WEB,
             alternativeRecovery = ErrorRecovery.WEB_SEARCH_PAGE,
             openPreferredDestination = {
-                appLauncher.open(
+                openApp(
                     Intent(Intent.ACTION_WEB_SEARCH).apply {
                         putExtra(SearchManager.QUERY, action.query)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -67,7 +68,7 @@ class LauncherActionExecutor internal constructor(
             },
             openAlternativeDestination = {
                 val encodedQuery = URLEncoder.encode(action.query, StandardCharsets.UTF_8.toString())
-                appLauncher.open(webIntent("https://www.google.com/search?q=$encodedQuery"))
+                openApp(webIntent("https://www.google.com/search?q=$encodedQuery"))
             },
         )
 
@@ -76,10 +77,10 @@ class LauncherActionExecutor internal constructor(
         operation = AppOperation.SEARCH_STORE,
         alternativeRecovery = ErrorRecovery.STORE_WEBSITE,
         openPreferredDestination = {
-            appLauncher.open(webIntent("market://search?q=${Uri.encode(action.query)}&c=apps"))
+            openApp(webIntent("market://search?q=${Uri.encode(action.query)}&c=apps"))
         },
         openAlternativeDestination = {
-            appLauncher.open(
+            openApp(
                 webIntent("https://play.google.com/store/search?q=${Uri.encode(action.query)}&c=apps"),
             )
         },
@@ -90,14 +91,14 @@ class LauncherActionExecutor internal constructor(
         operation = AppOperation.SEARCH_MAPS,
         alternativeRecovery = ErrorRecovery.MAPS_WEBSITE,
         openPreferredDestination = {
-            appLauncher.open(
+            openApp(
                 webIntent("geo:0,0?q=${Uri.encode(action.query)}").apply {
                     `package` = "com.google.android.apps.maps"
                 },
             )
         },
         openAlternativeDestination = {
-            appLauncher.open(
+            openApp(
                 webIntent("https://www.google.com/maps/search/?api=1&query=${Uri.encode(action.query)}"),
             )
         },
@@ -105,13 +106,13 @@ class LauncherActionExecutor internal constructor(
 
     private fun uninstall(action: LauncherAction.UninstallApp): LauncherActionOutcome {
         val packageName = action.app.key.packageName
-        val flags = appLauncher.installedApplicationFlags(packageName)
+        val flags = installedApplicationFlags(packageName)
             ?: return failure(AppErrorKind.APP_UNAVAILABLE, AppOperation.UNINSTALL_APP)
         if (!canUninstallFromLauncher(flags)) {
             return recoverToAppInfo(packageName, ErrorRecovery.SYSTEM_APP_INFO)
         }
         return try {
-            if (appLauncher.open(uninstallIntent(packageName))) {
+            if (openApp(uninstallIntent(packageName))) {
                 LauncherActionOutcome.Completed
             } else {
                 recoverToAppInfo(packageName, ErrorRecovery.UNINSTALL_UNAVAILABLE_APP_INFO)
@@ -128,7 +129,7 @@ class LauncherActionExecutor internal constructor(
         recovery: ErrorRecovery,
         originalCause: Throwable? = null,
     ): LauncherActionOutcome = try {
-        if (appLauncher.open(appInfoIntent(packageName))) {
+        if (openApp(appInfoIntent(packageName))) {
             LauncherActionOutcome.Recovered(recovery)
         } else {
             failure(

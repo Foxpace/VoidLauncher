@@ -13,17 +13,12 @@ import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
-import com.tomasrepcik.voidlauncher.ui.LauncherConfirmation
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import kotlinx.coroutines.flow.Flow
 import org.koin.compose.koinInject
 
-fun interface UnexpectedErrorReporter {
-    fun report(error: AppError)
-}
-
-internal class AndroidLogUnexpectedErrorReporter : UnexpectedErrorReporter {
-    override fun report(error: AppError) {
+internal class AndroidLogUnexpectedErrorReporter {
+    fun report(error: AppError) {
         Log.e(
             "VoidLauncher",
             "Unexpected failure while ${error.operation.name.lowercase()}",
@@ -38,58 +33,52 @@ internal sealed interface HandledRootAction {
     data class ShowMessage(val value: String) : HandledRootAction
 }
 
-internal interface LauncherRootActionMessages {
-    fun errorMessage(error: AppError): String
-    fun recoveryMessage(recovery: ErrorRecovery): String?
-    fun confirmationMessage(confirmation: LauncherConfirmation): String
-}
-
 internal class AndroidLauncherRootActionMessages(
     context: Context,
     private val messageMapper: AppErrorMessageMapper,
-) : LauncherRootActionMessages {
+) {
     private val applicationContext = context.applicationContext
 
-    override fun errorMessage(error: AppError) = messageMapper.message(applicationContext, error)
+    fun errorMessage(error: AppError) = messageMapper.message(applicationContext, error)
 
-    override fun recoveryMessage(recovery: ErrorRecovery) =
+    fun recoveryMessage(recovery: ErrorRecovery) =
         messageMapper.recoveryMessage(applicationContext, recovery)
 
-    override fun confirmationMessage(confirmation: LauncherConfirmation) = when (confirmation) {
-        is LauncherConfirmation.AppAddedToHome -> applicationContext.getString(
-            R.string.app_added_to_home_confirmation,
-            confirmation.appLabel,
-        )
-    }
+    fun appAddedToHomeMessage(appLabel: String) = applicationContext.getString(
+        R.string.app_added_to_home_confirmation,
+        appLabel,
+    )
 }
 
 /** Shared native-action and message policy invoked by every feature root. */
 internal class LauncherRootActionHandler(
     private val actionExecutor: LauncherActionExecutor,
-    private val unexpectedErrorReporter: UnexpectedErrorReporter,
-    private val messages: LauncherRootActionMessages,
+    private val reportUnexpectedError: (AppError) -> Unit,
+    private val errorMessage: (AppError) -> String,
+    private val recoveryMessage: (ErrorRecovery) -> String?,
+    private val appAddedToHomeMessage: (String) -> String,
 ) {
     fun handle(action: LauncherRootAction): HandledRootAction = when (action) {
         is LauncherRootAction.Open -> handle(actionExecutor.execute(action.action))
         is LauncherRootAction.ShowError -> action.error.toMessage()
         is LauncherRootAction.ShowMessage -> HandledRootAction.ShowMessage(action.message)
-        is LauncherRootAction.ShowConfirmation -> HandledRootAction.ShowMessage(
-            messages.confirmationMessage(action.confirmation),
+        is LauncherRootAction.ShowAppAddedConfirmation -> HandledRootAction.ShowMessage(
+            appAddedToHomeMessage(action.appLabel),
         )
         LauncherRootAction.CloseScreen -> HandledRootAction.CloseScreen
     }
 
     private fun handle(outcome: LauncherActionOutcome): HandledRootAction = when (outcome) {
         LauncherActionOutcome.Completed -> HandledRootAction.Handled
-        is LauncherActionOutcome.Recovered -> messages.recoveryMessage(outcome.recovery)
+        is LauncherActionOutcome.Recovered -> recoveryMessage(outcome.recovery)
             ?.let(HandledRootAction::ShowMessage)
             ?: HandledRootAction.Handled
         is LauncherActionOutcome.Failed -> outcome.error.toMessage()
     }
 
     private fun AppError.toMessage(): HandledRootAction.ShowMessage {
-        if (kind == AppErrorKind.UNEXPECTED) unexpectedErrorReporter.report(this)
-        return HandledRootAction.ShowMessage(messages.errorMessage(this))
+        if (kind == AppErrorKind.UNEXPECTED) reportUnexpectedError(this)
+        return HandledRootAction.ShowMessage(errorMessage(this))
     }
 }
 

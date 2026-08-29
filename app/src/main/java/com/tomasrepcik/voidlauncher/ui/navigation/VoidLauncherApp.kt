@@ -24,7 +24,7 @@ import org.koin.compose.koinInject
 internal fun VoidLauncherApp(
     appViewModel: LauncherAppViewModel = koinViewModel(),
     appearanceViewModel: HomeAppearanceViewModel = koinViewModel(),
-    messages: LauncherRootActionMessages = koinInject(),
+    messages: AndroidLauncherRootActionMessages = koinInject(),
 ) {
     val state by appViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -59,9 +59,7 @@ internal fun VoidLauncherApp(
         NavigationTutorial(
             onFinish = {
                 tutorialDismissedThisSession = true
-                if (state.hasSeenNavigationTutorial == false) {
-                    appViewModel.onAction(LauncherAppAction.MarkNavigationTutorialSeen)
-                }
+                appViewModel.onAction(LauncherAppAction.MarkNavigationTutorialSeen)
             },
         )
     }

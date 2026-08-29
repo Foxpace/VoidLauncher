@@ -16,7 +16,10 @@ import org.junit.Test
 
 class LauncherActionExecutorTest {
     private val appLauncher = RecordingAppLauncher()
-    private val executor = LauncherActionExecutor(appLauncher)
+    private val executor = LauncherActionExecutor(
+        openApp = appLauncher::open,
+        installedApplicationFlags = appLauncher::installedApplicationFlags,
+    )
     private val exampleApp = installedApp(
         label = "Example",
         packageName = "dev.example",
@@ -143,20 +146,20 @@ class LauncherActionExecutorTest {
     }
 }
 
-private class RecordingAppLauncher : AppLauncher {
+private class RecordingAppLauncher {
     val started = mutableListOf<Intent>()
     val startResults = ArrayDeque<Boolean>()
     val flagRequests = mutableListOf<String>()
     var flags = 0
     var unexpectedFailure: RuntimeException? = null
 
-    override fun open(intent: Intent): Boolean {
+    fun open(intent: Intent): Boolean {
         unexpectedFailure?.let { throw it }
         started += intent
         return startResults.removeFirstOrNull() ?: true
     }
 
-    override fun installedApplicationFlags(packageName: String): Int {
+    fun installedApplicationFlags(packageName: String): Int {
         flagRequests += packageName
         return flags
     }

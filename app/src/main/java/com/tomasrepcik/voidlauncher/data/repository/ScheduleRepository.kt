@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.map
 
 class ScheduleRepository internal constructor(
     launcher: LauncherRepository,
-    private val storage: ScheduleStorage,
+    private val storage: LauncherStorage,
 ) {
     val schedules: Flow<List<AppSchedule>?> = launcher.readyLauncherState()
         .map { state -> state?.schedules }

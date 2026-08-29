@@ -2,7 +2,6 @@ package com.tomasrepcik.voidlauncher.ui.customization.shortcutpicker
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
@@ -24,13 +23,6 @@ internal fun ShortcutPickerRoot(
         snackbarHostState = snackbarHostState,
         onCloseScreen = navigator::goBack,
     )
-    LaunchedEffect(viewModel, navigator) {
-        viewModel.navigation.collect { destination ->
-            when (destination) {
-                ShortcutPickerNavigationEvent.Back -> navigator.goBack()
-            }
-        }
-    }
     ShortcutPickerScreen(
         slot = slot,
         state = state,

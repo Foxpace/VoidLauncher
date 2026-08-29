@@ -5,7 +5,6 @@ import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.LauncherPreferences
 import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
-import com.tomasrepcik.voidlauncher.data.source.InstalledAppsDataSource
 import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppOperation
@@ -13,6 +12,7 @@ import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -49,7 +49,8 @@ sealed interface RepositoryWriteResult {
 
 class LauncherRepository internal constructor(
     internal val storage: LauncherStorage,
-    private val installedAppsDataSource: InstalledAppsDataSource,
+    installedAppUpdates: Flow<List<InstalledApp>>,
+    private val findInstalledApp: suspend (AppKey) -> InstalledApp?,
     private val scope: CoroutineScope,
 ) {
     private val installedApps = MutableStateFlow<List<InstalledApp>>(emptyList())
@@ -60,7 +61,7 @@ class LauncherRepository internal constructor(
     val state: StateFlow<LauncherRepositoryState> = mutableState
 
     init {
-        installedAppsDataSource.observeInstalledApps()
+        installedAppUpdates
             .distinctUntilChanged()
             .catch { cause ->
                 cause.rethrowIfCancellation()
@@ -141,7 +142,7 @@ class LauncherRepository internal constructor(
         val appMap = currentInstalledApps.associateBy(InstalledApp::key).toMutableMap()
         snapshot.pinnedApps.forEach { pinned ->
             if (pinned.key !in appMap) {
-                installedAppsDataSource.getInstalledApp(pinned.key)?.let { appMap[pinned.key] = it }
+                findInstalledApp(pinned.key)?.let { appMap[pinned.key] = it }
             }
         }
         val pinnedApps = snapshot.pinnedApps.mapNotNull { pinned ->
@@ -152,7 +153,7 @@ class LauncherRepository internal constructor(
         }
         val shortcuts = snapshot.shortcuts.map { shortcut ->
             val app = (shortcut.selection as? ShortcutSelection.AppShortcut)?.let { selection ->
-                appMap[selection.key] ?: installedAppsDataSource.getInstalledApp(selection.key)
+                appMap[selection.key] ?: findInstalledApp(selection.key)
             }
             ResolvedShortcut(
                 slot = shortcut.slot,

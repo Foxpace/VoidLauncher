@@ -10,14 +10,19 @@ import kotlinx.coroutines.flow.map
 
 class ShortcutRepository internal constructor(
     launcher: LauncherRepository,
-    private val storage: ShortcutStorage,
+    private val saveShortcut: suspend (ShortcutSlot, ShortcutSelection) -> Unit,
 ) {
+    internal constructor(
+        launcher: LauncherRepository,
+        storage: LauncherStorage,
+    ) : this(launcher, storage::saveShortcut)
+
     val shortcuts: Flow<List<ResolvedShortcut>?> = launcher.readyLauncherState()
         .map { state -> state?.bottomShortcuts }
         .distinctUntilChanged()
 
     suspend fun save(slot: ShortcutSlot, selection: ShortcutSelection) =
         writeToStorage(AppOperation.SAVE_SHORTCUT) {
-            storage.saveShortcut(slot, selection)
+            saveShortcut(slot, selection)
         }
 }

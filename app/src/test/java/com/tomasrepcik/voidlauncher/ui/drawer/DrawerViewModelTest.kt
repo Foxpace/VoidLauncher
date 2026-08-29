@@ -3,7 +3,6 @@ package com.tomasrepcik.voidlauncher.ui.drawer
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
-import com.tomasrepcik.voidlauncher.ui.LauncherConfirmation
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.installedApp
@@ -101,9 +100,7 @@ class DrawerViewModelTest {
 
             // THEN
             assertThat(confirmation.await()).isEqualTo(
-                LauncherRootAction.ShowConfirmation(
-                    LauncherConfirmation.AppAddedToHome(camera.label),
-                )
+                LauncherRootAction.ShowAppAddedConfirmation(camera.label),
             )
             assertThat(repository.readyState().launcher.pinnedAppKeys).containsExactly(camera.key)
         }

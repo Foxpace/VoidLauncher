@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 
-@Suppress("TooManyFunctions") // One adapter implements the narrow storage ports as atomic Room operations.
+@Suppress("TooManyFunctions") // Room keeps each atomic storage operation local to its DAOs.
 internal class RoomLauncherStorage(
     private val database: LauncherDatabase,
 ) : LauncherStorage {

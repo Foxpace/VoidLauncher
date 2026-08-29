@@ -4,22 +4,16 @@ import com.tomasrepcik.voidlauncher.data.local.openLauncherDatabase
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.repository.HomeAppsRepository
-import com.tomasrepcik.voidlauncher.data.repository.HomeAppsStorage
 import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherStorage
 import com.tomasrepcik.voidlauncher.data.repository.LauncherStatusRepository
 import com.tomasrepcik.voidlauncher.data.repository.PreferencesRepository
-import com.tomasrepcik.voidlauncher.data.repository.PreferencesStorage
 import com.tomasrepcik.voidlauncher.data.repository.RoomLauncherStorage
 import com.tomasrepcik.voidlauncher.data.repository.ScheduleRepository
-import com.tomasrepcik.voidlauncher.data.repository.ScheduleStorage
 import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
-import com.tomasrepcik.voidlauncher.data.repository.ShortcutStorage
 import com.tomasrepcik.voidlauncher.data.source.InstalledAppsDataSource
-import com.tomasrepcik.voidlauncher.data.source.PackageManagerInstalledAppsDataSource
 import com.tomasrepcik.voidlauncher.data.source.observeInstalledAppChanges
 import com.tomasrepcik.voidlauncher.domain.action.AndroidAppLauncher
-import com.tomasrepcik.voidlauncher.domain.action.AppLauncher
 import com.tomasrepcik.voidlauncher.domain.action.LauncherActionExecutor
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import com.tomasrepcik.voidlauncher.domain.schedule.AppScheduleResolver
@@ -33,14 +27,10 @@ import com.tomasrepcik.voidlauncher.ui.home.minuteTicks
 import com.tomasrepcik.voidlauncher.ui.home.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.ui.home.appearance.AndroidBackgroundImageReader
 import com.tomasrepcik.voidlauncher.ui.home.appearance.AndroidContentPermissionManager
-import com.tomasrepcik.voidlauncher.ui.home.appearance.BackgroundImageReader
-import com.tomasrepcik.voidlauncher.ui.home.appearance.ContentPermissionManager
 import com.tomasrepcik.voidlauncher.ui.navigation.AndroidLogUnexpectedErrorReporter
 import com.tomasrepcik.voidlauncher.ui.navigation.AndroidLauncherRootActionMessages
 import com.tomasrepcik.voidlauncher.ui.navigation.LauncherAppViewModel
 import com.tomasrepcik.voidlauncher.ui.navigation.LauncherRootActionHandler
-import com.tomasrepcik.voidlauncher.ui.navigation.LauncherRootActionMessages
-import com.tomasrepcik.voidlauncher.ui.navigation.UnexpectedErrorReporter
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorArgs
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorViewModel
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleIdFactory
@@ -71,15 +61,10 @@ val launcherModule = module {
     single<Flow<LocalDateTime>>(HomeTimeQualifier) { minuteTicks(clock = get()) }
 
     single { openLauncherDatabase(androidContext()) }
-    single { RoomLauncherStorage(get()) }
-    single<LauncherStorage> { get<RoomLauncherStorage>() }
-    single<HomeAppsStorage> { get<RoomLauncherStorage>() }
-    single<ShortcutStorage> { get<RoomLauncherStorage>() }
-    single<PreferencesStorage> { get<RoomLauncherStorage>() }
-    single<ScheduleStorage> { get<RoomLauncherStorage>() }
-    single<InstalledAppsDataSource> {
+    single<LauncherStorage> { RoomLauncherStorage(get()) }
+    single {
         val context = androidContext()
-        PackageManagerInstalledAppsDataSource(
+        InstalledAppsDataSource(
             packageManager = context.packageManager,
             launcherPackageName = context.packageName,
             packageChanges = context.observeInstalledAppChanges(),
@@ -87,9 +72,11 @@ val launcherModule = module {
         )
     }
     single {
+        val installedApps = get<InstalledAppsDataSource>()
         LauncherRepository(
             storage = get(),
-            installedAppsDataSource = get(),
+            installedAppUpdates = installedApps.observeInstalledApps(),
+            findInstalledApp = installedApps::getInstalledApp,
             scope = get(LauncherScopeQualifier),
         )
     }
@@ -101,34 +88,44 @@ val launcherModule = module {
     single { ScheduleRepository(launcher = get(), storage = get()) }
     single { InstalledAppSearch() }
     single { AppScheduleResolver() }
-    single<ScheduleIdFactory> { ScheduleIdFactory { UUID.randomUUID().toString() } }
+    single<ScheduleIdFactory> { { UUID.randomUUID().toString() } }
     single { AppIconLoader(ioDispatcher = get(IoDispatcherQualifier)) }
-    single<ContentPermissionManager> { AndroidContentPermissionManager(androidContext()) }
-    single<BackgroundImageReader> {
+    single { AndroidContentPermissionManager(androidContext()) }
+    single {
         AndroidBackgroundImageReader(
             context = androidContext(),
             ioDispatcher = get(IoDispatcherQualifier),
         )
     }
 
-    single<AppLauncher> {
+    single {
         val context = androidContext()
         AndroidAppLauncher(
             packageManager = context.packageManager,
             startActivity = context::startActivity,
         )
     }
-    single { LauncherActionExecutor(appLauncher = get()) }
+    single {
+        val appLauncher = get<AndroidAppLauncher>()
+        LauncherActionExecutor(
+            openApp = appLauncher::open,
+            installedApplicationFlags = appLauncher::installedApplicationFlags,
+        )
+    }
     single { AppErrorMessageMapper() }
-    single<UnexpectedErrorReporter> { AndroidLogUnexpectedErrorReporter() }
-    single<LauncherRootActionMessages> {
+    single { AndroidLogUnexpectedErrorReporter() }
+    single {
         AndroidLauncherRootActionMessages(context = androidContext(), messageMapper = get())
     }
     single {
+        val unexpectedErrorReporter = get<AndroidLogUnexpectedErrorReporter>()
+        val messages = get<AndroidLauncherRootActionMessages>()
         LauncherRootActionHandler(
             actionExecutor = get(),
-            unexpectedErrorReporter = get(),
-            messages = get(),
+            reportUnexpectedError = unexpectedErrorReporter::report,
+            errorMessage = messages::errorMessage,
+            recoveryMessage = messages::recoveryMessage,
+            appAddedToHomeMessage = messages::appAddedToHomeMessage,
         )
     }
 
@@ -172,10 +169,13 @@ val launcherModule = module {
         )
     }
     viewModel {
+        val contentPermissions = get<AndroidContentPermissionManager>()
+        val backgroundImageReader = get<AndroidBackgroundImageReader>()
         HomeAppearanceViewModel(
             preferences = get(),
-            contentPermissions = get(),
-            backgroundImageReader = get(),
+            keepBackgroundReadAccess = contentPermissions::keepReadAccess,
+            releaseBackgroundReadAccess = contentPermissions::releaseReadAccess,
+            readBackground = backgroundImageReader::read,
         )
     }
 }

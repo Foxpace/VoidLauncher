@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
-@Suppress("TooManyFunctions") // Test fake deliberately mirrors the complete aggregate storage contract.
+@Suppress("TooManyFunctions") // The fake mirrors the complete aggregate storage behavior.
 internal class InMemoryLauncherStorage(
     initialSnapshot: LauncherStorageSnapshot = LauncherStorageSnapshot(),
     private var initializationFailuresRemaining: Int = 0,

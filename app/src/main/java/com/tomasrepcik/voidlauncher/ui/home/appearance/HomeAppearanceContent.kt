@@ -23,24 +23,19 @@ data class HomeBackgroundImage(
     val tertiary: Color?,
 )
 
-internal interface ContentPermissionManager {
-    fun keepReadAccess(uri: String): Result<Unit>
-    fun releaseReadAccess(uri: String)
-}
-
 internal class AndroidContentPermissionManager(
     context: Context,
-) : ContentPermissionManager {
+) {
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 
-    override fun keepReadAccess(uri: String): Result<Unit> = runCatching {
+    fun keepReadAccess(uri: String): Result<Unit> = runCatching {
         contentResolver.takePersistableUriPermission(
             uri.toUri(),
             Intent.FLAG_GRANT_READ_URI_PERMISSION,
         )
     }
 
-    override fun releaseReadAccess(uri: String) {
+    fun releaseReadAccess(uri: String) {
         runCatching {
             contentResolver.releasePersistableUriPermission(
                 uri.toUri(),
@@ -50,17 +45,13 @@ internal class AndroidContentPermissionManager(
     }
 }
 
-internal interface BackgroundImageReader {
-    suspend fun read(uri: String): HomeBackgroundImage?
-}
-
 internal class AndroidBackgroundImageReader(
     context: Context,
     private val ioDispatcher: CoroutineDispatcher,
-) : BackgroundImageReader {
+) {
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 
-    override suspend fun read(uri: String): HomeBackgroundImage? = withContext(ioDispatcher) {
+    suspend fun read(uri: String): HomeBackgroundImage? = withContext(ioDispatcher) {
         runCatching {
             val source = ImageDecoder.createSource(contentResolver, uri.toUri())
             ImageDecoder.decodeBitmap(source) { decoder, info, _ ->

@@ -5,10 +5,10 @@ import com.tomasrepcik.voidlauncher.data.model.InstalledApp
 import com.tomasrepcik.voidlauncher.data.model.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSelection
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
-import com.tomasrepcik.voidlauncher.data.repository.InMemoryLauncherStorage
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherRepositoryState
 import com.tomasrepcik.voidlauncher.data.repository.HomeAppsRepository
+import com.tomasrepcik.voidlauncher.data.repository.InMemoryLauncherStorage
 import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
 import com.tomasrepcik.voidlauncher.data.repository.PreferencesRepository
 import com.tomasrepcik.voidlauncher.data.repository.ScheduleRepository
@@ -16,11 +16,9 @@ import com.tomasrepcik.voidlauncher.data.repository.ShortcutRepository
 import com.tomasrepcik.voidlauncher.data.repository.LauncherStorageSnapshot
 import com.tomasrepcik.voidlauncher.data.repository.StoredPinnedApp
 import com.tomasrepcik.voidlauncher.data.repository.StoredShortcut
-import com.tomasrepcik.voidlauncher.data.source.InstalledAppsDataSource
 import com.tomasrepcik.voidlauncher.domain.schedule.AppSchedule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -77,6 +75,7 @@ data class PlannedRepositoryFailures(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LongParameterList") // Fixture options keep each test setup explicit at the call site.
 fun TestScope.launcherRepository(
     installedApps: List<InstalledApp> = emptyList(),
     pinnedApps: List<InstalledApp> = emptyList(),
@@ -85,7 +84,6 @@ fun TestScope.launcherRepository(
     failures: PlannedRepositoryFailures = PlannedRepositoryFailures(),
     installedAppUpdates: MutableStateFlow<List<InstalledApp>> = MutableStateFlow(installedApps),
 ): LauncherRepository {
-    val source = TestInstalledAppsDataSource(installedAppUpdates)
     val storage = InMemoryLauncherStorage(
         initialSnapshot = LauncherStorageSnapshot(
             installedApps = installedApps,
@@ -99,7 +97,14 @@ fun TestScope.launcherRepository(
     val repositoryScope = CoroutineScope(
         backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler),
     )
-    return LauncherRepository(storage, source, repositoryScope)
+    return LauncherRepository(
+        storage = storage,
+        installedAppUpdates = installedAppUpdates,
+        findInstalledApp = { appKey ->
+            installedAppUpdates.value.firstOrNull { it.key == appKey }
+        },
+        scope = repositoryScope,
+    )
 }
 
 fun LauncherRepository.readyState(): LauncherRepositoryState.Ready =
@@ -110,12 +115,3 @@ fun LauncherRepository.homeAppsRepository() = HomeAppsRepository(this, storage)
 fun LauncherRepository.shortcutRepository() = ShortcutRepository(this, storage)
 fun LauncherRepository.preferencesRepository() = PreferencesRepository(this, storage)
 fun LauncherRepository.scheduleRepository() = ScheduleRepository(this, storage)
-
-private class TestInstalledAppsDataSource(
-    private val installedApps: MutableStateFlow<List<InstalledApp>>,
-) : InstalledAppsDataSource {
-    override fun observeInstalledApps(): Flow<List<InstalledApp>> = installedApps
-
-    override suspend fun getInstalledApp(appKey: AppKey): InstalledApp? =
-        installedApps.value.firstOrNull { it.key == appKey }
-}

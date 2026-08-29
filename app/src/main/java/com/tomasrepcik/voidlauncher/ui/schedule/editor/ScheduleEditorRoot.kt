@@ -2,7 +2,6 @@ package com.tomasrepcik.voidlauncher.ui.schedule.editor
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomasrepcik.voidlauncher.ui.navigation.HandleRootActions
@@ -25,13 +24,6 @@ internal fun ScheduleEditorRoot(
         snackbarHostState = snackbarHostState,
         onCloseScreen = navigator::goBack,
     )
-    LaunchedEffect(viewModel, navigator) {
-        viewModel.navigation.collect { destination ->
-            when (destination) {
-                ScheduleEditorNavigationEvent.Back -> navigator.goBack()
-            }
-        }
-    }
     ScheduleEditorScreen(
         state = state,
         onBack = { viewModel.onAction(ScheduleEditorAction.Back) },

@@ -14,8 +14,6 @@ import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorAction
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorViewModel
-import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorNavigationEvent
-import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleIdFactory
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListAction
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListViewModel
 import com.tomasrepcik.voidlauncher.ui.schedule.list.ScheduleListNavigationEvent
@@ -48,10 +46,10 @@ class ScheduleEditorViewModelTest {
                 homeApps = repository.homeAppsRepository(),
                 scheduleId = null,
                 installedAppSearch = InstalledAppSearch(),
-                scheduleIdFactory = ScheduleIdFactory { "schedule" },
+                scheduleIdFactory = { "schedule" },
             )
             val listNavigation = async { list.navigation.take(3).toList() }
-            val editorNavigation = async { editor.navigation.first() }
+            val editorRootAction = async { editor.rootActions.first() }
 
             // WHEN
             list.onAction(ScheduleListAction.Back)
@@ -66,7 +64,7 @@ class ScheduleEditorViewModelTest {
                 ScheduleListNavigationEvent.Add,
                 ScheduleListNavigationEvent.Edit("work"),
             ).inOrder()
-            assertThat(editorNavigation.await()).isEqualTo(ScheduleEditorNavigationEvent.Back)
+            assertThat(editorRootAction.await()).isEqualTo(LauncherRootAction.CloseScreen)
         }
 
     @Test
@@ -82,7 +80,7 @@ class ScheduleEditorViewModelTest {
                 homeApps = repository.homeAppsRepository(),
                 scheduleId = null,
                 installedAppSearch = InstalledAppSearch(),
-                scheduleIdFactory = ScheduleIdFactory { "work" },
+                scheduleIdFactory = { "work" },
             )
             startCollecting(subject.uiState)
             advanceUntilIdle()
@@ -124,7 +122,7 @@ class ScheduleEditorViewModelTest {
                 homeApps = repository.homeAppsRepository(),
                 scheduleId = null,
                 installedAppSearch = InstalledAppSearch(),
-                scheduleIdFactory = ScheduleIdFactory { "schedule" },
+                scheduleIdFactory = { "schedule" },
             )
             startCollecting(subject.uiState)
 

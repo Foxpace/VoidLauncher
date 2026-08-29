@@ -42,9 +42,7 @@ class ScheduleEditorViewModel(
     private val draft = MutableStateFlow<ScheduleEditorUiState?>(null)
     private val saving = MutableStateFlow(false)
     private val rootActionChannel = Channel<LauncherRootAction>(Channel.BUFFERED)
-    private val navigationChannel = Channel<ScheduleEditorNavigationEvent>(Channel.BUFFERED)
     internal val rootActions = rootActionChannel.receiveAsFlow()
-    internal val navigation = navigationChannel.receiveAsFlow()
 
     private val repositoryData = combine(
         schedules.schedules,
@@ -87,7 +85,7 @@ class ScheduleEditorViewModel(
     fun onAction(action: ScheduleEditorAction) {
         when (action) {
             ScheduleEditorAction.Back ->
-                navigationChannel.trySend(ScheduleEditorNavigationEvent.Back)
+                rootActionChannel.trySend(LauncherRootAction.CloseScreen)
             ScheduleEditorAction.SaveSchedule -> saveSchedule()
             is ScheduleEditorAction.Update -> updateDraft { reduce(action) }
         }
@@ -103,7 +101,7 @@ class ScheduleEditorViewModel(
         saving.value = true
         viewModelScope.launch {
             val schedule = AppSchedule(
-                id = current.id ?: scheduleIdFactory.create(),
+                id = current.id ?: scheduleIdFactory(),
                 name = current.name.trim().ifEmpty { DEFAULT_SCHEDULE_NAME },
                 days = current.days,
                 startMinute = current.startMinute,

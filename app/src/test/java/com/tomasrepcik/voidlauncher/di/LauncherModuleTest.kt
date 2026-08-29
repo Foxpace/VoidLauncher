@@ -1,6 +1,7 @@
 package com.tomasrepcik.voidlauncher.di
 
 import android.content.Context
+import android.content.pm.PackageManager
 import com.tomasrepcik.voidlauncher.data.model.ShortcutSlot
 import com.tomasrepcik.voidlauncher.ui.schedule.editor.ScheduleEditorArgs
 import org.koin.core.annotation.KoinExperimentalAPI
@@ -15,6 +16,10 @@ class LauncherModuleTest {
         // GIVEN
         val requiredTypes = listOf(
             Context::class,
+            PackageManager::class,
+            Function0::class,
+            Function1::class,
+            Function2::class,
             ShortcutSlot::class,
             ScheduleEditorArgs::class,
         )

@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.map
 
 class PreferencesRepository internal constructor(
     launcher: LauncherRepository,
-    private val storage: PreferencesStorage,
+    private val storage: LauncherStorage,
 ) {
     val preferences = launcher.readyLauncherState()
         .map { state -> state?.preferences }
