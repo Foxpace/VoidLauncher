@@ -1,7 +1,9 @@
 package com.tomasrepcik.voidlauncher.home
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -47,7 +49,7 @@ class HomeScreenRobotTest {
     }
 
     @Test
-    fun givenAppDrawer_whenFilteringApps_thenSearchAndMatchingAppAreDisplayed() {
+    fun givenAppDrawer_whenFilteringApps_thenMatchingAppIsDisplayedWithoutAlphabetRail() {
         // GIVEN
         val robot = DrawerRobot(composeRule)
         robot.launch()
@@ -57,6 +59,7 @@ class HomeScreenRobotTest {
 
         // THEN
         robot.assertDrawerVisible()
+        robot.assertAlphabetRailHidden()
     }
 
     @Test
@@ -246,18 +249,28 @@ private class DrawerRobot(
                     installedApp("Chrome"),
                     installedApp("Signal"),
                 )
+                var query by remember { mutableStateOf("") }
+                val visibleApps = apps.filter { app ->
+                    app.label.contains(query, ignoreCase = true)
+                }
                 AppDrawerScreen(
                     state = DrawerUiState(
-                        apps = apps,
-                        sectionLetters = apps.associate { app ->
+                        query = query,
+                        apps = visibleApps,
+                        sectionLetters = visibleApps.associate { app ->
                             app.key to app.label.first()
                         },
-                        alphabetIndex = mapOf('C' to 0, 'S' to 2),
+                        alphabetIndex = visibleApps
+                            .map { app -> app.label.first() }
+                            .distinct()
+                            .associateWith { letter ->
+                                visibleApps.indexOfFirst { app -> app.label.first() == letter }
+                            },
                     ),
                     actions = AppDrawerActions(
                         onBack = {},
                         onOpenSettings = {},
-                        onQueryChange = {},
+                        onQueryChange = { query = it },
                         onAppClicked = { openedAppLabel = it.label },
                         onAddHomeApp = {},
                         onRemoveHomeApp = {},
@@ -276,6 +289,10 @@ private class DrawerRobot(
 
     fun filter(text: String) {
         composeRule.onNodeWithTag("drawer_search_field").performTextInput(text)
+    }
+
+    fun assertAlphabetRailHidden() {
+        composeRule.onAllNodesWithTag("drawer_alphabet_rail").assertCountEquals(0)
     }
 
     fun tapApp(label: String) {

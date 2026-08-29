@@ -94,14 +94,16 @@ internal fun DrawerAppBrowser(
             }
         }
 
-        AlphabetRail(
-            letters = state.alphabetIndex.keys.toList(),
-            onLetterClick = { letter ->
-                state.alphabetIndex[letter]?.let { position ->
-                    scope.launch { listState.animateScrollToItem(position) }
-                }
-            },
-        )
+        if (state.query.isBlank()) {
+            AlphabetRail(
+                letters = state.alphabetIndex.keys.toList(),
+                onLetterClick = { letter ->
+                    state.alphabetIndex[letter]?.let { position ->
+                        scope.launch { listState.animateScrollToItem(position) }
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -180,6 +182,7 @@ private fun AlphabetRail(
     Column(
         modifier = Modifier
             .fillMaxHeight()
+            .testTag("drawer_alphabet_rail")
             .padding(bottom = 8.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
         horizontalAlignment = Alignment.CenterHorizontally,
