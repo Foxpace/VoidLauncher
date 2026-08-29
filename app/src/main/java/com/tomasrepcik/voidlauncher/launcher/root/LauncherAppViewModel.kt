@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.launcher.navigation
+package com.tomasrepcik.voidlauncher.launcher.root
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

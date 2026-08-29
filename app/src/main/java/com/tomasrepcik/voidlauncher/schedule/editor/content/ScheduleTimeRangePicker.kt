@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.schedule.editor
+package com.tomasrepcik.voidlauncher.schedule.editor.content
 
 import android.app.TimePickerDialog
 import androidx.compose.foundation.clickable

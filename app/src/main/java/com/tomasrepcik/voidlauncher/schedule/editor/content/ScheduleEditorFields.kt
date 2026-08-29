@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.schedule.editor
+package com.tomasrepcik.voidlauncher.schedule.editor.content
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

@@ -1,7 +1,6 @@
 package com.tomasrepcik.voidlauncher.launcher
 
 import com.tomasrepcik.voidlauncher.storage.database.openLauncherDatabase
-import com.tomasrepcik.voidlauncher.launcher.ShortcutSlot
 import com.tomasrepcik.voidlauncher.storage.launcher.LauncherRepository
 import com.tomasrepcik.voidlauncher.home.data.HomeAppsRepository
 import com.tomasrepcik.voidlauncher.appcatalog.data.InstalledAppsRepository
@@ -27,10 +26,10 @@ import com.tomasrepcik.voidlauncher.home.minuteTicks
 import com.tomasrepcik.voidlauncher.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.appearance.AndroidBackgroundImageReader
 import com.tomasrepcik.voidlauncher.appearance.AndroidContentPermissionManager
-import com.tomasrepcik.voidlauncher.launcher.navigation.AndroidLogUnexpectedErrorReporter
-import com.tomasrepcik.voidlauncher.launcher.navigation.AndroidLauncherRootActionMessages
-import com.tomasrepcik.voidlauncher.launcher.navigation.LauncherAppViewModel
-import com.tomasrepcik.voidlauncher.launcher.navigation.LauncherRootActionHandler
+import com.tomasrepcik.voidlauncher.launcher.root.AndroidLogUnexpectedErrorReporter
+import com.tomasrepcik.voidlauncher.launcher.root.AndroidLauncherRootActionMessages
+import com.tomasrepcik.voidlauncher.launcher.root.LauncherAppViewModel
+import com.tomasrepcik.voidlauncher.launcher.root.LauncherRootActionHandler
 import com.tomasrepcik.voidlauncher.schedule.editor.ScheduleEditorArgs
 import com.tomasrepcik.voidlauncher.schedule.editor.ScheduleEditorViewModel
 import com.tomasrepcik.voidlauncher.schedule.editor.ScheduleIdFactory

@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.launcher.navigation
+package com.tomasrepcik.voidlauncher.launcher.root
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomasrepcik.voidlauncher.appearance.HomeAppearanceViewModel
+import com.tomasrepcik.voidlauncher.launcher.navigation.LauncherNavigation
 import com.tomasrepcik.voidlauncher.onboarding.NavigationTutorial
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject

@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.launcher.navigation
+package com.tomasrepcik.voidlauncher.launcher.root
 
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.storage.launcher.LauncherStatusRepository

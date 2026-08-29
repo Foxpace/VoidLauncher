@@ -17,6 +17,12 @@ voidlauncher/
 └── storage/
 ```
 
+The largest capabilities split further when a cohesive group reaches at least three files:
+
+- `launcher/root` owns application composition, startup state, and root actions.
+- `launcher/navigation` owns routes, back-stack behavior, and navigation transitions.
+- `schedule/editor/content` owns editor fields and picker content. The editor contract, root, screen, and ViewModel remain together in `schedule/editor`.
+
 ## Ownership
 
 - A screen keeps its root, screen, contract, ViewModel, actions, and navigation event in its capability package.
@@ -34,5 +40,6 @@ voidlauncher/
 - Code moves to a shared package only after at least two features use it.
 - Do not add generic `common`, `model`, `repository`, or `util` packages.
 - Create a technical subpackage only for at least three related files. Stable user capabilities may remain small.
+- Consider a split when a package grows beyond seven files. Keep a larger package intact when all files describe one screen and no group of at least three has a distinct responsibility.
 
 Tests mirror production package paths. Shared fixtures stay in `testing`.

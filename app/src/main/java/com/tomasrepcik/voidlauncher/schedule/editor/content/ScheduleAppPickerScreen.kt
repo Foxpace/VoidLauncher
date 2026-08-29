@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.schedule.editor
+package com.tomasrepcik.voidlauncher.schedule.editor.content
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -27,6 +27,8 @@ import com.tomasrepcik.voidlauncher.design.components.LauncherSearchField
 import com.tomasrepcik.voidlauncher.design.components.LauncherSearchOptions
 import com.tomasrepcik.voidlauncher.schedule.ScheduleHeader
 import com.tomasrepcik.voidlauncher.schedule.ScheduleScaffold
+import com.tomasrepcik.voidlauncher.schedule.editor.ScheduleEditorAction
+import com.tomasrepcik.voidlauncher.schedule.editor.ScheduleEditorUiState
 
 @Composable
 internal fun ScheduleAppPickerScreen(

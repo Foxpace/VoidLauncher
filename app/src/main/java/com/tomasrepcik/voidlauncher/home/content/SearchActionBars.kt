@@ -3,8 +3,11 @@ package com.tomasrepcik.voidlauncher.home.content
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,12 +30,13 @@ import com.tomasrepcik.voidlauncher.home.HomeActions
 import com.tomasrepcik.voidlauncher.home.SearchOverlayActions
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun BoxScope.KeyboardSearchActions(
     query: String,
     actions: HomeActions,
 ) {
     AnimatedVisibility(
-        visible = query.isNotBlank(),
+        visible = keyboardSearchActionsAreVisible(query, WindowInsets.isImeVisible),
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .imePadding()
@@ -57,6 +61,11 @@ internal fun BoxScope.KeyboardSearchActions(
         }
     }
 }
+
+internal fun keyboardSearchActionsAreVisible(
+    query: String,
+    isKeyboardVisible: Boolean,
+) = query.isNotBlank() && isKeyboardVisible
 
 @Composable
 internal fun SearchActionButtons(

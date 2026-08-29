@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.schedule.editor
+package com.tomasrepcik.voidlauncher.schedule.editor.content
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +25,7 @@ import com.tomasrepcik.voidlauncher.schedule.EVERY_DAY
 import com.tomasrepcik.voidlauncher.schedule.WEEKDAYS
 import com.tomasrepcik.voidlauncher.schedule.WEEKEND
 import com.tomasrepcik.voidlauncher.schedule.shortName
+import com.tomasrepcik.voidlauncher.schedule.editor.ScheduleEditorAction
 import java.time.DayOfWeek
 
 @Composable

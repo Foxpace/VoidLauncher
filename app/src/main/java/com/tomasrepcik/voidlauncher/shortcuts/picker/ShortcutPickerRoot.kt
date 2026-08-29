@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tomasrepcik.voidlauncher.launcher.ShortcutSlot
-import com.tomasrepcik.voidlauncher.launcher.navigation.HandleRootActions
+import com.tomasrepcik.voidlauncher.launcher.root.HandleRootActions
 import com.tomasrepcik.voidlauncher.launcher.navigation.LauncherNavigator
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf

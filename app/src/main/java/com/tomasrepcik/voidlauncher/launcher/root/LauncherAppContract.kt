@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.launcher.navigation
+package com.tomasrepcik.voidlauncher.launcher.root
 
 import com.tomasrepcik.voidlauncher.launcher.error.AppError
 

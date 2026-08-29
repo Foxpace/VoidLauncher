@@ -1,4 +1,4 @@
-package com.tomasrepcik.voidlauncher.launcher.navigation
+package com.tomasrepcik.voidlauncher.launcher.root
 
 import android.content.Context
 import android.util.Log
