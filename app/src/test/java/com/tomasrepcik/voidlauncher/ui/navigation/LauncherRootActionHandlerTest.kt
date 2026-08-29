@@ -8,6 +8,7 @@ import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppOperation
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
+import com.tomasrepcik.voidlauncher.ui.LauncherConfirmation
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import org.junit.Test
 
@@ -29,6 +30,7 @@ class LauncherRootActionHandlerTest {
             messages = object : LauncherRootActionMessages {
                 override fun errorMessage(error: AppError) = "Something went wrong"
                 override fun recoveryMessage(recovery: ErrorRecovery): String? = null
+                override fun confirmationMessage(confirmation: LauncherConfirmation) = "Done"
             },
         )
 

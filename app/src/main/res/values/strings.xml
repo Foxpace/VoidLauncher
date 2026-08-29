@@ -49,6 +49,7 @@
     <string name="no_matching_apps">No matching apps</string>
     <string name="add_to_home">Add to Home</string>
     <string name="remove_from_home">Remove from Home</string>
+    <string name="app_added_to_home_confirmation">%1$s added to Home.</string>
     <string name="rename">Rename</string>
     <string name="uninstall">Uninstall</string>
     <string name="more_options">More options</string>

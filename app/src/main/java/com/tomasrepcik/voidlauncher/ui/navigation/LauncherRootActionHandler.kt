@@ -6,12 +6,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
+import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.domain.action.LauncherActionExecutor
 import com.tomasrepcik.voidlauncher.domain.action.LauncherActionOutcome
 import com.tomasrepcik.voidlauncher.domain.error.AppError
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.domain.error.AppErrorMessageMapper
 import com.tomasrepcik.voidlauncher.domain.error.ErrorRecovery
+import com.tomasrepcik.voidlauncher.ui.LauncherConfirmation
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import kotlinx.coroutines.flow.Flow
 import org.koin.compose.koinInject
@@ -39,6 +41,7 @@ internal sealed interface HandledRootAction {
 internal interface LauncherRootActionMessages {
     fun errorMessage(error: AppError): String
     fun recoveryMessage(recovery: ErrorRecovery): String?
+    fun confirmationMessage(confirmation: LauncherConfirmation): String
 }
 
 internal class AndroidLauncherRootActionMessages(
@@ -51,6 +54,13 @@ internal class AndroidLauncherRootActionMessages(
 
     override fun recoveryMessage(recovery: ErrorRecovery) =
         messageMapper.recoveryMessage(applicationContext, recovery)
+
+    override fun confirmationMessage(confirmation: LauncherConfirmation) = when (confirmation) {
+        is LauncherConfirmation.AppAddedToHome -> applicationContext.getString(
+            R.string.app_added_to_home_confirmation,
+            confirmation.appLabel,
+        )
+    }
 }
 
 /** Shared native-action and message policy invoked by every feature root. */
@@ -63,6 +73,9 @@ internal class LauncherRootActionHandler(
         is LauncherRootAction.Open -> handle(actionExecutor.execute(action.action))
         is LauncherRootAction.ShowError -> action.error.toMessage()
         is LauncherRootAction.ShowMessage -> HandledRootAction.ShowMessage(action.message)
+        is LauncherRootAction.ShowConfirmation -> HandledRootAction.ShowMessage(
+            messages.confirmationMessage(action.confirmation),
+        )
         LauncherRootAction.CloseScreen -> HandledRootAction.CloseScreen
     }
 

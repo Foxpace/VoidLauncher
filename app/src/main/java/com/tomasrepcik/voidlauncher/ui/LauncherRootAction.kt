@@ -9,7 +9,12 @@ internal sealed interface LauncherRootAction {
     data class Open(val action: LauncherAction) : LauncherRootAction
     data class ShowError(val error: AppError) : LauncherRootAction
     data class ShowMessage(val message: String) : LauncherRootAction
+    data class ShowConfirmation(val confirmation: LauncherConfirmation) : LauncherRootAction
     data object CloseScreen : LauncherRootAction
+}
+
+internal sealed interface LauncherConfirmation {
+    data class AppAddedToHome(val appLabel: String) : LauncherConfirmation
 }
 
 internal suspend fun SendChannel<LauncherRootAction>.sendWriteResult(

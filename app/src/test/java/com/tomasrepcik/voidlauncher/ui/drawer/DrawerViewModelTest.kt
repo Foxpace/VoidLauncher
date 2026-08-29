@@ -3,6 +3,7 @@ package com.tomasrepcik.voidlauncher.ui.drawer
 import com.google.common.truth.Truth.assertThat
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
+import com.tomasrepcik.voidlauncher.ui.LauncherConfirmation
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.testing.MainDispatcherRule
 import com.tomasrepcik.voidlauncher.testing.installedApp
@@ -81,34 +82,82 @@ class DrawerViewModelTest {
         }
 
     @Test
-    fun givenDrawer_whenAppActionsRun_thenEffectsAndPinnedStateAreUpdated() = runTest(mainDispatcherRule.dispatcher) {
-        // GIVEN
-        val camera = installedApp("Camera")
-        val repository = launcherRepository(installedApps = listOf(camera))
-        advanceUntilIdle()
-        val subject = DrawerViewModel(
-            installedApps = repository.installedAppsRepository(),
-            homeApps = repository.homeAppsRepository(),
-            installedAppSearch = InstalledAppSearch(),
-        )
-        val action = async { subject.rootActions.first() }
+    fun givenAppList_whenAppIsAddedToHome_thenStateAndConfirmationAreUpdated() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val camera = installedApp("Camera")
+            val repository = launcherRepository(installedApps = listOf(camera))
+            advanceUntilIdle()
+            val subject = DrawerViewModel(
+                installedApps = repository.installedAppsRepository(),
+                homeApps = repository.homeAppsRepository(),
+                installedAppSearch = InstalledAppSearch(),
+            )
+            val confirmation = async { subject.rootActions.first() }
 
-        // WHEN
-        subject.onAction(DrawerAction.OpenApp(camera))
-        subject.onAction(DrawerAction.AddHomeApp(camera))
-        advanceUntilIdle()
+            // WHEN
+            subject.onAction(DrawerAction.AddHomeApp(camera))
+            advanceUntilIdle()
 
-        // THEN
-        assertThat(action.await()).isEqualTo(
-            LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(camera))
-        )
-        assertThat(repository.readyState().launcher.pinnedAppKeys).containsExactly(camera.key)
+            // THEN
+            assertThat(confirmation.await()).isEqualTo(
+                LauncherRootAction.ShowConfirmation(
+                    LauncherConfirmation.AppAddedToHome(camera.label),
+                )
+            )
+            assertThat(repository.readyState().launcher.pinnedAppKeys).containsExactly(camera.key)
+        }
 
-        // WHEN
-        subject.onAction(DrawerAction.RemoveHomeApp(camera))
-        advanceUntilIdle()
+    @Test
+    fun givenPinnedApp_whenOpenedAndRemoved_thenLaunchAndStateAreUpdated() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val camera = installedApp("Camera")
+            val repository = launcherRepository(
+                installedApps = listOf(camera),
+                pinnedApps = listOf(camera),
+            )
+            advanceUntilIdle()
+            val subject = DrawerViewModel(
+                installedApps = repository.installedAppsRepository(),
+                homeApps = repository.homeAppsRepository(),
+                installedAppSearch = InstalledAppSearch(),
+            )
+            val action = async { subject.rootActions.first() }
 
-        // THEN
-        assertThat(repository.readyState().launcher.pinnedAppKeys).isEmpty()
-    }
+            // WHEN
+            subject.onAction(DrawerAction.OpenApp(camera))
+            subject.onAction(DrawerAction.RemoveHomeApp(camera))
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(action.await()).isEqualTo(
+                LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(camera))
+            )
+            assertThat(repository.readyState().launcher.pinnedAppKeys).isEmpty()
+        }
+
+    @Test
+    fun givenUninstallRequest_whenSent_thenLauncherActionIsEmitted() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val camera = installedApp("Camera")
+            val repository = launcherRepository(installedApps = listOf(camera))
+            advanceUntilIdle()
+            val subject = DrawerViewModel(
+                installedApps = repository.installedAppsRepository(),
+                homeApps = repository.homeAppsRepository(),
+                installedAppSearch = InstalledAppSearch(),
+            )
+            val action = async { subject.rootActions.first() }
+
+            // WHEN
+            subject.onAction(DrawerAction.UninstallApp(camera))
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(action.await()).isEqualTo(
+                LauncherRootAction.Open(LauncherAction.UninstallApp(camera)),
+            )
+        }
 }

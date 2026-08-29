@@ -83,8 +83,9 @@ fun TestScope.launcherRepository(
     shortcuts: List<ResolvedShortcut> = emptyList(),
     schedules: List<AppSchedule> = emptyList(),
     failures: PlannedRepositoryFailures = PlannedRepositoryFailures(),
+    installedAppUpdates: MutableStateFlow<List<InstalledApp>> = MutableStateFlow(installedApps),
 ): LauncherRepository {
-    val source = TestInstalledAppsDataSource(installedApps)
+    val source = TestInstalledAppsDataSource(installedAppUpdates)
     val storage = InMemoryLauncherStorage(
         initialSnapshot = LauncherStorageSnapshot(
             installedApps = installedApps,
@@ -111,10 +112,8 @@ fun LauncherRepository.preferencesRepository() = PreferencesRepository(this, sto
 fun LauncherRepository.scheduleRepository() = ScheduleRepository(this, storage)
 
 private class TestInstalledAppsDataSource(
-    apps: List<InstalledApp>,
+    private val installedApps: MutableStateFlow<List<InstalledApp>>,
 ) : InstalledAppsDataSource {
-    private val installedApps = MutableStateFlow(apps)
-
     override fun observeInstalledApps(): Flow<List<InstalledApp>> = installedApps
 
     override suspend fun getInstalledApp(appKey: AppKey): InstalledApp? =

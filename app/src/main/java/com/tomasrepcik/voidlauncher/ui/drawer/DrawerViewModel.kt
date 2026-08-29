@@ -7,6 +7,7 @@ import com.tomasrepcik.voidlauncher.data.repository.InstalledAppsRepository
 import com.tomasrepcik.voidlauncher.data.repository.RepositoryWriteResult
 import com.tomasrepcik.voidlauncher.domain.action.LauncherAction
 import com.tomasrepcik.voidlauncher.domain.search.InstalledAppSearch
+import com.tomasrepcik.voidlauncher.ui.LauncherConfirmation
 import com.tomasrepcik.voidlauncher.ui.LauncherRootAction
 import com.tomasrepcik.voidlauncher.ui.sendWriteResult
 import kotlinx.coroutines.channels.Channel
@@ -70,7 +71,10 @@ class DrawerViewModel(
             is DrawerAction.OpenApp -> rootActionChannel.trySend(
                 LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(action.app)),
             )
-            is DrawerAction.AddHomeApp -> runHomeAppWrite { homeApps.add(action.app.key) }
+            is DrawerAction.AddHomeApp -> runHomeAppWrite(
+                confirmation = LauncherConfirmation.AppAddedToHome(action.app.label),
+                write = { homeApps.add(action.app.key) },
+            )
             is DrawerAction.RemoveHomeApp -> runHomeAppWrite { homeApps.remove(action.app.key) }
             is DrawerAction.UninstallApp -> rootActionChannel.trySend(
                 LauncherRootAction.Open(LauncherAction.UninstallApp(action.app)),
@@ -78,7 +82,17 @@ class DrawerViewModel(
         }
     }
 
-    private fun runHomeAppWrite(write: suspend () -> RepositoryWriteResult) {
-        viewModelScope.launch { rootActionChannel.sendWriteResult(write()) }
+    private fun runHomeAppWrite(
+        confirmation: LauncherConfirmation? = null,
+        write: suspend () -> RepositoryWriteResult,
+    ) {
+        viewModelScope.launch {
+            val result = write()
+            if (result == RepositoryWriteResult.Completed && confirmation != null) {
+                rootActionChannel.send(LauncherRootAction.ShowConfirmation(confirmation))
+            } else {
+                rootActionChannel.sendWriteResult(result)
+            }
+        }
     }
 }
