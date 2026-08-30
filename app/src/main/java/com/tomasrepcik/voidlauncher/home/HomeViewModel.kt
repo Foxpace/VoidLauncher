@@ -2,6 +2,8 @@ package com.tomasrepcik.voidlauncher.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tomasrepcik.voidlauncher.appcatalog.action.AppSelectionAction
+import com.tomasrepcik.voidlauncher.appcatalog.action.HandleAppSelection
 import com.tomasrepcik.voidlauncher.home.data.HomeAppsRepository
 import com.tomasrepcik.voidlauncher.appcatalog.data.InstalledAppsRepository
 import com.tomasrepcik.voidlauncher.storage.launcher.RepositoryWriteResult
@@ -16,6 +18,7 @@ import com.tomasrepcik.voidlauncher.launcher.sendWriteResult
 import java.time.Clock
 import java.time.LocalDateTime
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +41,7 @@ class HomeViewModel(
     shortcuts: ShortcutRepository,
     schedules: ScheduleRepository,
     private val installedAppSearch: InstalledAppSearch,
+    private val handleAppSelection: HandleAppSelection,
     scheduleResolver: AppScheduleResolver,
     currentTime: Flow<LocalDateTime>,
 ) : ViewModel() {
@@ -84,6 +88,7 @@ class HomeViewModel(
         HomeUiState(
             query = currentQuery,
             homeApps = scheduledApps.apps,
+            homeAppKeys = pinned.keys,
             shortcuts = currentShortcuts.sortedBy { it.slot.ordinal },
             searchSuggestions = installedAppSearch.suggestions(currentQuery, installed),
             isScheduleActive = scheduledApps.isScheduleActive,
@@ -101,16 +106,21 @@ class HomeViewModel(
             HomeAction.OpenSchedules -> navigationChannel.trySend(HomeNavigationEvent.OpenSchedules)
             is HomeAction.QueryChanged -> updateQuery(action.value)
             is HomeAction.Search -> search(action.target)
-            is HomeAction.OpenApp -> emitNative(LauncherAction.LaunchInstalledApp(action.app))
+            is HomeAction.OpenApp -> {
+                updateQuery("")
+                runAppSelection(AppSelectionAction.Open(action.app))
+            }
+            is HomeAction.AddApp -> runAppSelection(AppSelectionAction.AddToHome(action.app))
             is HomeAction.OpenShortcut -> emitNative(LauncherAction.OpenShortcut(action.shortcut))
-            is HomeAction.RemoveApp -> runHomeAppWrite { homeApps.remove(action.app.key) }
+            is HomeAction.RemoveApp ->
+                runAppSelection(AppSelectionAction.RemoveFromHome(action.app))
             is HomeAction.RenameApp -> runHomeAppWrite {
                 homeApps.rename(action.app.key, action.label)
             }
             is HomeAction.ReorderApps -> runHomeAppWrite {
                 homeApps.reorder(action.fromIndex, action.toIndex)
             }
-            is HomeAction.UninstallApp -> emitNative(LauncherAction.UninstallApp(action.app))
+            is HomeAction.UninstallApp -> runAppSelection(AppSelectionAction.Uninstall(action.app))
         }
     }
 
@@ -136,6 +146,12 @@ class HomeViewModel(
 
     private fun emitNative(action: LauncherAction) {
         rootActionChannel.trySend(LauncherRootAction.Open(action))
+    }
+
+    private fun runAppSelection(action: AppSelectionAction) {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            handleAppSelection(action)?.let { rootActionChannel.send(it) }
+        }
     }
 
     private fun runHomeAppWrite(write: suspend () -> RepositoryWriteResult) {

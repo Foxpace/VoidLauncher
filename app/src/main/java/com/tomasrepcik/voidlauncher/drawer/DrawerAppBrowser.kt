@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,9 +28,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.tomasrepcik.voidlauncher.R
+import com.tomasrepcik.voidlauncher.appcatalog.content.InstalledAppActionMenu
+import com.tomasrepcik.voidlauncher.appcatalog.content.InstalledAppMenuActions
 import com.tomasrepcik.voidlauncher.launcher.InstalledApp
 import com.tomasrepcik.voidlauncher.design.components.AppIcon
 import kotlinx.coroutines.launch
@@ -142,35 +140,16 @@ private fun DrawerAppRow(
             Text(text = app.label, style = MaterialTheme.typography.bodyLarge)
         }
 
-        DropdownMenu(
+        InstalledAppActionMenu(
             expanded = showMenu,
+            isOnHome = isPinned,
             onDismissRequest = { showMenu = false },
-        ) {
-            if (isPinned) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.remove_from_home)) },
-                    onClick = {
-                        showMenu = false
-                        actions.onRemoveFromHome()
-                    },
-                )
-            } else {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.add_to_home)) },
-                    onClick = {
-                        showMenu = false
-                        actions.onAddToHome()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.uninstall)) },
-                onClick = {
-                    showMenu = false
-                    actions.onUninstall()
-                },
-            )
-        }
+            actions = InstalledAppMenuActions(
+                onAddToHome = actions.onAddToHome,
+                onRemoveFromHome = actions.onRemoveFromHome,
+                onUninstall = actions.onUninstall,
+            ),
+        )
     }
 }
 

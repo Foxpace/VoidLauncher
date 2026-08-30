@@ -1,6 +1,7 @@
 package com.tomasrepcik.voidlauncher.home
 
 import com.google.common.truth.Truth.assertThat
+import com.tomasrepcik.voidlauncher.appcatalog.action.HandleAppSelection
 import com.tomasrepcik.voidlauncher.launcher.ShortcutSlot
 import com.tomasrepcik.voidlauncher.launcher.action.LauncherAction
 import com.tomasrepcik.voidlauncher.schedule.data.AppScheduleResolver
@@ -118,6 +119,51 @@ class HomeViewModelTest {
         }
 
     @Test
+    fun givenActiveSearch_whenSuggestedAppIsOpened_thenSearchIsCleared() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val camera = installedApp("Camera")
+            val repository = launcherRepository(installedApps = listOf(camera))
+            advanceUntilIdle()
+            val subject = repository.homeViewModel()
+            startCollecting(subject.uiState)
+            subject.onAction(HomeAction.QueryChanged("cam"))
+            advanceUntilIdle()
+            val openAction = async { subject.rootActions.first() }
+
+            // WHEN
+            subject.onAction(HomeAction.OpenApp(camera))
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(subject.uiState.value.query).isEmpty()
+            assertThat(openAction.await()).isEqualTo(
+                LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(camera)),
+            )
+        }
+
+    @Test
+    fun givenSearchSuggestion_whenAddedToHome_thenStateAndConfirmationAreUpdated() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val camera = installedApp("Camera")
+            val repository = launcherRepository(installedApps = listOf(camera))
+            advanceUntilIdle()
+            val subject = repository.homeViewModel()
+            val confirmation = async { subject.rootActions.first() }
+
+            // WHEN
+            subject.onAction(HomeAction.AddApp(camera))
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(confirmation.await()).isEqualTo(
+                LauncherRootAction.ShowAppAddedConfirmation(camera.label),
+            )
+            assertThat(repository.readyState().launcher.pinnedAppKeys).containsExactly(camera.key)
+        }
+
+    @Test
     fun givenHomeItems_whenClickedOrUninstalled_thenLauncherActionsAreEmitted() =
         runTest(mainDispatcherRule.dispatcher) {
             // GIVEN
@@ -224,6 +270,7 @@ private fun com.tomasrepcik.voidlauncher.storage.launcher.LauncherRepository.hom
     shortcuts = shortcutRepository(),
     schedules = scheduleRepository(),
     installedAppSearch = InstalledAppSearch(),
+    handleAppSelection = HandleAppSelection(homeAppsRepository()),
     scheduleResolver = AppScheduleResolver(),
     currentTime = currentTime,
 )

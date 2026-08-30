@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,9 +21,6 @@ import com.tomasrepcik.voidlauncher.testing.resolvedShortcut
 import com.tomasrepcik.voidlauncher.drawer.AppDrawerScreen
 import com.tomasrepcik.voidlauncher.drawer.AppDrawerActions
 import com.tomasrepcik.voidlauncher.drawer.DrawerUiState
-import com.tomasrepcik.voidlauncher.home.HomeScreen
-import com.tomasrepcik.voidlauncher.home.HomeActions
-import com.tomasrepcik.voidlauncher.home.HomeUiState
 import com.tomasrepcik.voidlauncher.appearance.HomeAppearanceState
 import com.tomasrepcik.voidlauncher.design.theme.VoidLauncherTheme
 import org.junit.Rule
@@ -128,6 +127,22 @@ class HomeScreenRobotTest {
         // THEN
         assertEquals("Camera", robot.openedAppLabel)
     }
+
+    @Test
+    fun givenUnpinnedSearchHint_whenLongPressed_thenAppCanBeAddedToHome() {
+        // GIVEN
+        val robot = HomeRobot(composeRule)
+        robot.launch(suggestedApps = listOf(installedApp("Camera")))
+        robot.enterSearch("camera")
+
+        // WHEN
+        robot.longPressSearchSuggestion("Camera")
+
+        // THEN
+        robot.assertSearchSuggestionActionsVisible()
+        robot.tapAddToHome()
+        assertEquals("Camera", robot.addedHomeAppLabel)
+    }
 }
 
 private class HomeRobot(
@@ -143,9 +158,12 @@ private class HomeRobot(
         private set
     var openedShortcutSlot: ShortcutSlot? = null
         private set
+    var addedHomeAppLabel: String? = null
+        private set
 
     fun launch(
         homeApps: List<InstalledApp> = listOf(installedApp("Signal"), installedApp("Spotify")),
+        suggestedApps: List<InstalledApp> = emptyList(),
         isScheduleActive: Boolean = false,
     ) {
         composeRule.setContent {
@@ -155,6 +173,10 @@ private class HomeRobot(
                     state = HomeUiState(
                         query = query,
                         homeApps = homeApps,
+                        homeAppKeys = homeApps.mapTo(mutableSetOf()) { it.key },
+                        searchSuggestions = suggestedApps.filter { app ->
+                            app.label.contains(query, ignoreCase = true)
+                        },
                         isScheduleActive = isScheduleActive,
                         isLoading = false,
                         shortcuts = listOf(
@@ -173,6 +195,7 @@ private class HomeRobot(
                         onShortcutClicked = { openedShortcutSlot = it.slot },
                         onOpenDrawer = { drawerOpenRequests += 1 },
                         onOpenSchedules = { scheduleOpenRequests += 1 },
+                        onAddHomeApp = { addedHomeAppLabel = it.label },
                         onRemoveHomeApp = {},
                         onRenameHomeApp = { _, _ -> },
                         onUninstallApp = {},
@@ -207,6 +230,21 @@ private class HomeRobot(
 
     fun tapAddApp() {
         composeRule.onNodeWithTag("home_add_app_button").performClick()
+    }
+
+    fun longPressSearchSuggestion(label: String) {
+        composeRule.onNodeWithTag("home_search_suggestion_$label").performTouchInput {
+            longClick()
+        }
+    }
+
+    fun assertSearchSuggestionActionsVisible() {
+        composeRule.onNodeWithText("Add to home").assertIsDisplayed()
+        composeRule.onNodeWithText("Uninstall").assertIsDisplayed()
+    }
+
+    fun tapAddToHome() {
+        composeRule.onNodeWithText("Add to home").performClick()
     }
 
     fun assertEmptyStateVisible() {

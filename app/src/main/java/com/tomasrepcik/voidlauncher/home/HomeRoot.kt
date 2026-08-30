@@ -44,6 +44,7 @@ internal fun HomeRoot(
             onShortcutClicked = { viewModel.onAction(HomeAction.OpenShortcut(it)) },
             onOpenDrawer = { viewModel.onAction(HomeAction.OpenDrawer) },
             onOpenSchedules = { viewModel.onAction(HomeAction.OpenSchedules) },
+            onAddHomeApp = { viewModel.onAction(HomeAction.AddApp(it)) },
             onRemoveHomeApp = { viewModel.onAction(HomeAction.RemoveApp(it)) },
             onRenameHomeApp = { app, label ->
                 viewModel.onAction(HomeAction.RenameApp(app, label))

@@ -1,7 +1,8 @@
 package com.tomasrepcik.voidlauncher.home.content
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -21,7 +22,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +34,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tomasrepcik.voidlauncher.R
+import com.tomasrepcik.voidlauncher.appcatalog.content.InstalledAppActionMenu
+import com.tomasrepcik.voidlauncher.appcatalog.content.InstalledAppMenuActions
 import com.tomasrepcik.voidlauncher.launcher.InstalledApp
 import com.tomasrepcik.voidlauncher.design.components.AppIcon
 import com.tomasrepcik.voidlauncher.home.HomeAppRowActions
@@ -51,7 +58,13 @@ internal fun SearchOverlayResults(
             key(app.key) {
                 SearchSuggestionRow(
                     app = app,
+                    isOnHome = app.key in state.homeAppKeys,
                     onClick = { actions.onSuggestionClicked(app) },
+                    menuActions = InstalledAppMenuActions(
+                        onAddToHome = { actions.onAddToHome(app) },
+                        onRemoveFromHome = { actions.onRemoveFromHome(app) },
+                        onUninstall = { actions.onUninstall(app) },
+                    ),
                 )
             }
         }
@@ -69,28 +82,45 @@ internal fun SearchOverlayResults(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchSuggestionRow(
     app: InstalledApp,
+    isOnHome: Boolean,
     onClick: () -> Unit,
+    menuActions: InstalledAppMenuActions,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        AppIcon(
-            app = app,
+    var showMenu by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp)),
-        )
-        Text(
-            text = app.label,
-            style = MaterialTheme.typography.bodyLarge,
+                .fillMaxWidth()
+                .testTag("home_search_suggestion_${app.label}")
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showMenu = true },
+                )
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AppIcon(
+                app = app,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+            )
+            Text(
+                text = app.label,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        InstalledAppActionMenu(
+            expanded = showMenu,
+            isOnHome = isOnHome,
+            onDismissRequest = { showMenu = false },
+            actions = menuActions,
         )
     }
 }

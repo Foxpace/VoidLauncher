@@ -2,14 +2,14 @@ package com.tomasrepcik.voidlauncher.drawer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tomasrepcik.voidlauncher.appcatalog.action.AppSelectionAction
+import com.tomasrepcik.voidlauncher.appcatalog.action.HandleAppSelection
 import com.tomasrepcik.voidlauncher.home.data.HomeAppsRepository
 import com.tomasrepcik.voidlauncher.appcatalog.data.InstalledAppsRepository
-import com.tomasrepcik.voidlauncher.storage.launcher.RepositoryWriteResult
-import com.tomasrepcik.voidlauncher.launcher.action.LauncherAction
 import com.tomasrepcik.voidlauncher.appcatalog.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.launcher.LauncherRootAction
-import com.tomasrepcik.voidlauncher.launcher.sendWriteResult
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,8 +20,9 @@ import kotlinx.coroutines.launch
 
 class DrawerViewModel(
     installedApps: InstalledAppsRepository,
-    private val homeApps: HomeAppsRepository,
+    homeApps: HomeAppsRepository,
     installedAppSearch: InstalledAppSearch,
+    private val handleAppSelection: HandleAppSelection,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -67,33 +68,19 @@ class DrawerViewModel(
             DrawerAction.OpenCustomization ->
                 navigationChannel.trySend(DrawerNavigationEvent.OpenCustomization)
             is DrawerAction.QueryChanged -> query.value = action.value
-            is DrawerAction.OpenApp -> rootActionChannel.trySend(
-                LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(action.app)),
-            )
-            is DrawerAction.AddHomeApp -> runHomeAppWrite(
-                addedAppLabel = action.app.label,
-                write = { homeApps.add(action.app.key) },
-            )
-            is DrawerAction.RemoveHomeApp -> runHomeAppWrite { homeApps.remove(action.app.key) }
-            is DrawerAction.UninstallApp -> rootActionChannel.trySend(
-                LauncherRootAction.Open(LauncherAction.UninstallApp(action.app)),
-            )
+            is DrawerAction.OpenApp -> runAppSelection(AppSelectionAction.Open(action.app))
+            is DrawerAction.AddHomeApp ->
+                runAppSelection(AppSelectionAction.AddToHome(action.app))
+            is DrawerAction.RemoveHomeApp ->
+                runAppSelection(AppSelectionAction.RemoveFromHome(action.app))
+            is DrawerAction.UninstallApp ->
+                runAppSelection(AppSelectionAction.Uninstall(action.app))
         }
     }
 
-    private fun runHomeAppWrite(
-        addedAppLabel: String? = null,
-        write: suspend () -> RepositoryWriteResult,
-    ) {
-        viewModelScope.launch {
-            val result = write()
-            if (result == RepositoryWriteResult.Completed && addedAppLabel != null) {
-                rootActionChannel.send(
-                    LauncherRootAction.ShowAppAddedConfirmation(addedAppLabel),
-                )
-            } else {
-                rootActionChannel.sendWriteResult(result)
-            }
+    private fun runAppSelection(action: AppSelectionAction) {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            handleAppSelection(action)?.let { rootActionChannel.send(it) }
         }
     }
 }

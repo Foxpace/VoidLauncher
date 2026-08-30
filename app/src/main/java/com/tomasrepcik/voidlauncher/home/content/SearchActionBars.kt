@@ -52,6 +52,9 @@ internal fun BoxScope.KeyboardSearchActions(
             SearchActionButtons(
                 actions = SearchOverlayActions(
                     onSuggestionClicked = {},
+                    onAddToHome = {},
+                    onRemoveFromHome = {},
+                    onUninstall = {},
                     onPlayStoreSearch = actions.onPlayStoreSearch,
                     onMapsSearch = actions.onMapsSearch,
                     onBrowserSearch = actions.onBrowserSearch,

@@ -94,6 +94,7 @@ private val homeActions = HomeActions(
     onShortcutClicked = {},
     onOpenDrawer = {},
     onOpenSchedules = {},
+    onAddHomeApp = {},
     onRemoveHomeApp = {},
     onRenameHomeApp = { _, _ -> },
     onUninstallApp = {},

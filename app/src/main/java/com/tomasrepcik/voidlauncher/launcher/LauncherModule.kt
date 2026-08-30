@@ -12,6 +12,7 @@ import com.tomasrepcik.voidlauncher.schedule.data.ScheduleRepository
 import com.tomasrepcik.voidlauncher.shortcuts.data.ShortcutRepository
 import com.tomasrepcik.voidlauncher.appcatalog.data.InstalledAppsDataSource
 import com.tomasrepcik.voidlauncher.appcatalog.data.observeInstalledAppChanges
+import com.tomasrepcik.voidlauncher.appcatalog.action.HandleAppSelection
 import com.tomasrepcik.voidlauncher.launcher.action.AndroidAppLauncher
 import com.tomasrepcik.voidlauncher.launcher.action.LauncherActionExecutor
 import com.tomasrepcik.voidlauncher.launcher.error.AppErrorMessageMapper
@@ -86,6 +87,7 @@ val launcherModule = module {
     single { PreferencesRepository(launcher = get(), storage = get()) }
     single { ScheduleRepository(launcher = get(), storage = get()) }
     single { InstalledAppSearch() }
+    single { HandleAppSelection(homeApps = get()) }
     single { AppScheduleResolver() }
     single<ScheduleIdFactory> { { UUID.randomUUID().toString() } }
     single { AppIconLoader(ioDispatcher = get(IoDispatcherQualifier)) }
@@ -136,6 +138,7 @@ val launcherModule = module {
             shortcuts = get(),
             schedules = get(),
             installedAppSearch = get(),
+            handleAppSelection = get(),
             scheduleResolver = get(),
             currentTime = get(HomeTimeQualifier),
         )
@@ -145,6 +148,7 @@ val launcherModule = module {
             installedApps = get(),
             homeApps = get(),
             installedAppSearch = get(),
+            handleAppSelection = get(),
         )
     }
     viewModel { CustomizationViewModel(shortcuts = get()) }

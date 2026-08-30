@@ -1,6 +1,7 @@
 package com.tomasrepcik.voidlauncher.drawer
 
 import com.google.common.truth.Truth.assertThat
+import com.tomasrepcik.voidlauncher.appcatalog.action.HandleAppSelection
 import com.tomasrepcik.voidlauncher.launcher.action.LauncherAction
 import com.tomasrepcik.voidlauncher.appcatalog.search.InstalledAppSearch
 import com.tomasrepcik.voidlauncher.launcher.LauncherRootAction
@@ -36,6 +37,7 @@ class DrawerViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 installedAppSearch = InstalledAppSearch(),
+                handleAppSelection = HandleAppSelection(repository.homeAppsRepository()),
             )
             val navigation = async { subject.navigation.take(2).toList() }
 
@@ -66,6 +68,7 @@ class DrawerViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 installedAppSearch = InstalledAppSearch(),
+                handleAppSelection = HandleAppSelection(repository.homeAppsRepository()),
             )
             startCollecting(subject.uiState)
 
@@ -91,6 +94,7 @@ class DrawerViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 installedAppSearch = InstalledAppSearch(),
+                handleAppSelection = HandleAppSelection(repository.homeAppsRepository()),
             )
             val confirmation = async { subject.rootActions.first() }
 
@@ -119,6 +123,7 @@ class DrawerViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 installedAppSearch = InstalledAppSearch(),
+                handleAppSelection = HandleAppSelection(repository.homeAppsRepository()),
             )
             val action = async { subject.rootActions.first() }
 
@@ -145,6 +150,7 @@ class DrawerViewModelTest {
                 installedApps = repository.installedAppsRepository(),
                 homeApps = repository.homeAppsRepository(),
                 installedAppSearch = InstalledAppSearch(),
+                handleAppSelection = HandleAppSelection(repository.homeAppsRepository()),
             )
             val action = async { subject.rootActions.first() }
 

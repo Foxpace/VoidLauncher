@@ -36,7 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -93,6 +92,13 @@ fun HomeScreen(
     val searchFocusRequester = remember { FocusRequester() }
     val controller = rememberHomeScreenController()
     val bottomSwipeInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    val screenActions = actions.copy(
+        onAppClicked = { app ->
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            actions.onAppClicked(app)
+        },
+    )
 
     LaunchedEffect(state.homeApps) {
         controller.retainApps(state.homeApps)
@@ -118,7 +124,7 @@ fun HomeScreen(
         ) {
             HomeContent(
                 state = state,
-                actions = actions,
+                actions = screenActions,
                 controller = controller,
                 searchFocusRequester = searchFocusRequester,
                 onDismiss = focusManager::clearFocus,
@@ -280,12 +286,16 @@ private fun BoxScope.HomeSearch(
             exit = shrinkVertically(),
         ) {
             SearchOverlay(
-                state = SearchOverlayState(state.isLoading, state.searchSuggestions),
+                state = SearchOverlayState(
+                    isLoading = state.isLoading,
+                    suggestions = state.searchSuggestions,
+                    homeAppKeys = state.homeAppKeys,
+                ),
                 actions = SearchOverlayActions(
-                    onSuggestionClicked = { app ->
-                        actions.onQueryChange("")
-                        actions.onAppClicked(app)
-                    },
+                    onSuggestionClicked = actions.onAppClicked,
+                    onAddToHome = actions.onAddHomeApp,
+                    onRemoveFromHome = actions.onRemoveHomeApp,
+                    onUninstall = actions.onUninstallApp,
                     onPlayStoreSearch = actions.onPlayStoreSearch,
                     onMapsSearch = actions.onMapsSearch,
                     onBrowserSearch = actions.onBrowserSearch,
@@ -298,10 +308,14 @@ private fun BoxScope.HomeSearch(
 internal data class SearchOverlayState(
     val isLoading: Boolean,
     val suggestions: List<InstalledApp>,
+    val homeAppKeys: Set<AppKey>,
 )
 
 internal data class SearchOverlayActions(
     val onSuggestionClicked: (InstalledApp) -> Unit,
+    val onAddToHome: (InstalledApp) -> Unit,
+    val onRemoveFromHome: (InstalledApp) -> Unit,
+    val onUninstall: (InstalledApp) -> Unit,
     val onPlayStoreSearch: () -> Unit,
     val onMapsSearch: () -> Unit,
     val onBrowserSearch: () -> Unit,
