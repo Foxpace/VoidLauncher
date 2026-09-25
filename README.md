@@ -43,12 +43,15 @@ The launcher asks for no internet permission, account, or cloud service.
 
 - Keeps a small, reorderable Home list
 - Searches installed apps or hands a query to the browser, Play Store, or Maps
+- Sends text to ChatGPT, Claude, or Gemini from the AI menu
 - Filters the full drawer and jumps by letter
 - Renames, adds, removes, or uninstalls apps from launcher menus
 - Assigns two bottom shortcuts to Contacts, Camera, or another app
 - Uses a chosen Home image with optional image-derived colors
 - Schedules different Home lists, including overnight and all-day ranges
 - Explains its gestures and shortcuts in a replayable tutorial
+
+Type a prompt in the Home search field, tap **AI**, and choose an assistant. VoidLauncher tries to share the text with its Android app. If the app cannot receive it, the prompt is copied and the assistant website opens so you can paste it. Opening a destination clears the search field and dismisses the keyboard.
 
 ## How it is built
 

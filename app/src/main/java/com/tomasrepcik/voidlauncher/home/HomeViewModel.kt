@@ -106,10 +106,7 @@ class HomeViewModel(
             HomeAction.OpenSchedules -> navigationChannel.trySend(HomeNavigationEvent.OpenSchedules)
             is HomeAction.QueryChanged -> updateQuery(action.value)
             is HomeAction.Search -> search(action.target)
-            is HomeAction.OpenApp -> {
-                updateQuery("")
-                runAppSelection(AppSelectionAction.Open(action.app))
-            }
+            is HomeAction.OpenApp -> runAppSelection(AppSelectionAction.Open(action.app))
             is HomeAction.AddApp -> runAppSelection(AppSelectionAction.AddToHome(action.app))
             is HomeAction.OpenShortcut -> emitNative(LauncherAction.OpenShortcut(action.shortcut))
             is HomeAction.RemoveApp ->
@@ -134,23 +131,30 @@ class HomeViewModel(
             rootActionChannel.trySend(LauncherRootAction.ShowMessage("Type a query first."))
             return
         }
-        viewModelScope.launch {
-            val action = installedAppSearch.resolve(
-                target,
-                currentQuery,
-                currentInstalledApps.first { it != null }.orEmpty(),
-            )
-            if (action != null) rootActionChannel.send(LauncherRootAction.Open(action))
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val apps = if (target == SearchTarget.BestMatch) {
+                currentInstalledApps.first { it != null }.orEmpty()
+            } else {
+                emptyList()
+            }
+            if (query.value != currentQuery) return@launch
+            val action = installedAppSearch.resolve(target, currentQuery, apps)
+            if (action != null) emitNative(action)
         }
     }
 
     private fun emitNative(action: LauncherAction) {
+        updateQuery("")
         rootActionChannel.trySend(LauncherRootAction.Open(action))
     }
 
     private fun runAppSelection(action: AppSelectionAction) {
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            handleAppSelection(action)?.let { rootActionChannel.send(it) }
+            when (val result = handleAppSelection(action)) {
+                is LauncherRootAction.Open -> emitNative(result.action)
+                null -> Unit
+                else -> rootActionChannel.send(result)
+            }
         }
     }
 

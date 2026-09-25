@@ -1,6 +1,5 @@
 package com.tomasrepcik.voidlauncher.launcher.action
 
-import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
@@ -17,14 +16,13 @@ import com.tomasrepcik.voidlauncher.launcher.error.AppError
 import com.tomasrepcik.voidlauncher.launcher.error.AppErrorKind
 import com.tomasrepcik.voidlauncher.launcher.error.AppOperation
 import com.tomasrepcik.voidlauncher.launcher.error.ErrorRecovery
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.CancellationException
 
 /** Owns Android intent planning, fallback policy, recovery, and failure translation. */
 class LauncherActionExecutor internal constructor(
     private val openApp: (Intent) -> Boolean,
     private val installedApplicationFlags: (String) -> Int?,
+    private val copyText: (String) -> Unit,
 ) {
     fun execute(action: LauncherAction): LauncherActionOutcome = runCatching {
         executeAction(action)
@@ -45,6 +43,7 @@ class LauncherActionExecutor internal constructor(
         is LauncherAction.OpenWebSearch -> openWebSearch(action)
         is LauncherAction.OpenPlayStoreSearch -> openPlayStore(action)
         is LauncherAction.OpenMapsSearch -> openMaps(action)
+        is LauncherAction.AskAssistant -> askAssistant(action)
         is LauncherAction.UninstallApp -> uninstall(action)
     }
 
@@ -55,22 +54,15 @@ class LauncherActionExecutor internal constructor(
     }
 
     private fun openWebSearch(action: LauncherAction.OpenWebSearch) =
-        openPreferredOrAlternativeDestination(
-            operation = AppOperation.SEARCH_WEB,
-            alternativeRecovery = ErrorRecovery.WEB_SEARCH_PAGE,
-            openPreferredDestination = {
-                openApp(
-                    Intent(Intent.ACTION_WEB_SEARCH).apply {
-                        putExtra(SearchManager.QUERY, action.query)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    },
-                )
-            },
-            openAlternativeDestination = {
-                val encodedQuery = URLEncoder.encode(action.query, StandardCharsets.UTF_8.toString())
-                openApp(webIntent("https://www.google.com/search?q=$encodedQuery"))
-            },
-        )
+        openDestination(operation = AppOperation.SEARCH_WEB) {
+            val searchUri = Uri.Builder()
+                .scheme("https")
+                .authority("www.google.com")
+                .path("search")
+                .appendQueryParameter("q", action.query)
+                .build()
+            openApp(webIntent(searchUri.toString()))
+        }
 
     private fun openPlayStore(action: LauncherAction.OpenPlayStoreSearch) =
         openPreferredOrAlternativeDestination(
@@ -103,6 +95,24 @@ class LauncherActionExecutor internal constructor(
             )
         },
     )
+
+    private fun askAssistant(action: LauncherAction.AskAssistant) =
+        openPreferredOrAlternativeDestination(
+            operation = AppOperation.ASK_ASSISTANT,
+            alternativeRecovery = ErrorRecovery.ASSISTANT_WEBSITE,
+            openPreferredDestination = {
+                openApp(Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    `package` = action.assistant.packageName
+                    putExtra(Intent.EXTRA_TEXT, action.text)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            },
+            openAlternativeDestination = {
+                copyText(action.text)
+                openApp(webIntent(action.assistant.website))
+            },
+        )
 
     private fun uninstall(action: LauncherAction.UninstallApp): LauncherActionOutcome {
         val packageName = action.app.key.packageName
@@ -245,6 +255,7 @@ private val LauncherAction.operation: AppOperation
         is LauncherAction.OpenWebSearch -> AppOperation.SEARCH_WEB
         is LauncherAction.OpenPlayStoreSearch -> AppOperation.SEARCH_STORE
         is LauncherAction.OpenMapsSearch -> AppOperation.SEARCH_MAPS
+        is LauncherAction.AskAssistant -> AppOperation.ASK_ASSISTANT
         is LauncherAction.UninstallApp -> AppOperation.UNINSTALL_APP
     }
 

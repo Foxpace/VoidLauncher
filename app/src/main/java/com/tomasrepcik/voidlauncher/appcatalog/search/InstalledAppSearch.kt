@@ -4,6 +4,7 @@ import com.tomasrepcik.voidlauncher.launcher.InstalledApp
 import com.tomasrepcik.voidlauncher.launcher.action.LauncherAction
 import java.text.Normalizer
 import kotlin.math.max
+import com.tomasrepcik.voidlauncher.launcher.action.TextAssistant
 
 private const val DEFAULT_SUGGESTION_LIMIT = 5
 private const val MIN_PREFIX_QUERY_LENGTH = 2
@@ -20,6 +21,9 @@ enum class SearchTarget {
     Browser,
     PlayStore,
     Maps,
+    ChatGpt,
+    Claude,
+    Gemini,
 }
 
 class InstalledAppSearch {
@@ -57,6 +61,9 @@ class InstalledAppSearch {
             SearchTarget.Browser -> LauncherAction.OpenWebSearch(trimmedQuery)
             SearchTarget.PlayStore -> LauncherAction.OpenPlayStoreSearch(trimmedQuery)
             SearchTarget.Maps -> LauncherAction.OpenMapsSearch(trimmedQuery)
+            SearchTarget.ChatGpt -> LauncherAction.AskAssistant(TextAssistant.ChatGpt, trimmedQuery)
+            SearchTarget.Claude -> LauncherAction.AskAssistant(TextAssistant.Claude, trimmedQuery)
+            SearchTarget.Gemini -> LauncherAction.AskAssistant(TextAssistant.Gemini, trimmedQuery)
         }
     }
 

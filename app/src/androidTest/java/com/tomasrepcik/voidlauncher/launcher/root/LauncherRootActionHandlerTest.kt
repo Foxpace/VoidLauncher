@@ -21,6 +21,7 @@ class LauncherRootActionHandlerTest {
         val snackbar = SnackbarHostState()
         val handler = LauncherRootActionHandler(
             actionExecutor = LauncherActionExecutor(
+                copyText = {},
                 openApp = { true },
                 installedApplicationFlags = { 0 },
             ),

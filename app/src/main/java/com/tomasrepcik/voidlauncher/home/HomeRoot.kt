@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.tomasrepcik.voidlauncher.appcatalog.search.SearchTarget
 import com.tomasrepcik.voidlauncher.appearance.HomeAppearanceViewModel
 import com.tomasrepcik.voidlauncher.launcher.root.HandleRootActions
 import com.tomasrepcik.voidlauncher.launcher.navigation.AppListRoute
@@ -36,10 +35,7 @@ internal fun HomeRoot(
         appearance = appearance,
         actions = HomeActions(
             onQueryChange = { viewModel.onAction(HomeAction.QueryChanged(it)) },
-            onPrimarySearch = { viewModel.onAction(HomeAction.Search(SearchTarget.BestMatch)) },
-            onBrowserSearch = { viewModel.onAction(HomeAction.Search(SearchTarget.Browser)) },
-            onPlayStoreSearch = { viewModel.onAction(HomeAction.Search(SearchTarget.PlayStore)) },
-            onMapsSearch = { viewModel.onAction(HomeAction.Search(SearchTarget.Maps)) },
+            onSearch = { viewModel.onAction(HomeAction.Search(it)) },
             onAppClicked = { viewModel.onAction(HomeAction.OpenApp(it)) },
             onShortcutClicked = { viewModel.onAction(HomeAction.OpenShortcut(it)) },
             onOpenDrawer = { viewModel.onAction(HomeAction.OpenDrawer) },

@@ -77,6 +77,7 @@ import com.tomasrepcik.voidlauncher.design.components.SwipeNavigationConfig
 import com.tomasrepcik.voidlauncher.appearance.HomeAppearanceState
 import com.tomasrepcik.voidlauncher.appearance.HomeBackgroundContainer
 import kotlin.math.abs
+import com.tomasrepcik.voidlauncher.appcatalog.search.SearchTarget
 
 private val BottomSwipeActivationZone = 96.dp
 private val BottomSwipeFocusThreshold = 24.dp
@@ -92,11 +93,23 @@ fun HomeScreen(
     val searchFocusRequester = remember { FocusRequester() }
     val controller = rememberHomeScreenController()
     val bottomSwipeInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    fun dismissSearch() {
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+    }
+
     val screenActions = actions.copy(
+        onSearch = { target ->
+            dismissSearch()
+            actions.onSearch(target)
+        },
         onAppClicked = { app ->
-            focusManager.clearFocus()
-            keyboardController?.hide()
+            dismissSearch()
             actions.onAppClicked(app)
+        },
+        onShortcutClicked = { shortcut ->
+            dismissSearch()
+            actions.onShortcutClicked(shortcut)
         },
     )
 
@@ -277,7 +290,7 @@ private fun BoxScope.HomeSearch(
             options = LauncherSearchOptions(
                 focusRequester = searchFocusRequester,
                 testTag = "home_search_field",
-                onSubmit = actions.onPrimarySearch,
+                onSubmit = { actions.onSearch(SearchTarget.BestMatch) },
             ),
         )
         AnimatedVisibility(
@@ -296,9 +309,7 @@ private fun BoxScope.HomeSearch(
                     onAddToHome = actions.onAddHomeApp,
                     onRemoveFromHome = actions.onRemoveHomeApp,
                     onUninstall = actions.onUninstallApp,
-                    onPlayStoreSearch = actions.onPlayStoreSearch,
-                    onMapsSearch = actions.onMapsSearch,
-                    onBrowserSearch = actions.onBrowserSearch,
+                    onSearch = actions.onSearch,
                 ),
             )
         }
@@ -316,9 +327,7 @@ internal data class SearchOverlayActions(
     val onAddToHome: (InstalledApp) -> Unit,
     val onRemoveFromHome: (InstalledApp) -> Unit,
     val onUninstall: (InstalledApp) -> Unit,
-    val onPlayStoreSearch: () -> Unit,
-    val onMapsSearch: () -> Unit,
-    val onBrowserSearch: () -> Unit,
+    val onSearch: (SearchTarget) -> Unit,
 )
 
 internal data class HomeAppRowState(
@@ -465,7 +474,7 @@ private fun SearchOverlay(
         shadowElevation = 8.dp,
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            SearchActionButtons(actions = actions, testTagPrefix = "home")
+            SearchActionButtons(onSearch = actions.onSearch, testTagPrefix = "home")
             SearchOverlayResults(state = state, actions = actions)
         }
     }

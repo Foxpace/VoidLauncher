@@ -23,6 +23,7 @@ class LauncherRootActionHandlerTest {
         val reported = mutableListOf<AppError>()
         val handler = LauncherRootActionHandler(
             actionExecutor = LauncherActionExecutor(
+                copyText = {},
                 openApp = { true },
                 installedApplicationFlags = { 0 },
             ),

@@ -16,6 +16,8 @@ import com.tomasrepcik.voidlauncher.launcher.error.ErrorRecovery
 import com.tomasrepcik.voidlauncher.launcher.LauncherRootAction
 import kotlinx.coroutines.flow.Flow
 import org.koin.compose.koinInject
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
 internal class AndroidLogUnexpectedErrorReporter {
     fun report(error: AppError) {
@@ -89,10 +91,16 @@ internal fun HandleRootActions(
     onCloseScreen: () -> Unit = {},
     handler: LauncherRootActionHandler = koinInject(),
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val currentOnCloseScreen = rememberUpdatedState(onCloseScreen)
 
     LaunchedEffect(actions, handler) {
         actions.collect { action ->
+            if (action is LauncherRootAction.Open) {
+                focusManager.clearFocus(force = true)
+                keyboardController?.hide()
+            }
             when (val result = handler.handle(action)) {
                 HandledRootAction.Handled -> Unit
                 HandledRootAction.CloseScreen -> currentOnCloseScreen.value()

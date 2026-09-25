@@ -26,6 +26,8 @@ import com.tomasrepcik.voidlauncher.design.theme.VoidLauncherTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.test.assertIsNotFocused
+import com.tomasrepcik.voidlauncher.appcatalog.search.SearchTarget
 
 class HomeScreenRobotTest {
     @get:Rule
@@ -39,12 +41,32 @@ class HomeScreenRobotTest {
 
         // WHEN
         robot.enterSearch("spotify")
+        robot.assertSearchActionsVisible()
         robot.tapBrowser()
 
         // THEN
         robot.assertHomeVisible()
-        robot.assertSearchActionsVisible()
+        robot.assertSearchUnfocused()
         assertEquals(1, robot.browserSearchRequests)
+    }
+
+    @Test
+    fun givenPrompt_whenEachAssistantIsSelected_thenDestinationIsRequestedAndFocusIsDismissed() {
+        // GIVEN
+        val robot = HomeRobot(composeRule)
+        robot.launch()
+        val targets = listOf(SearchTarget.ChatGpt, SearchTarget.Claude, SearchTarget.Gemini)
+
+        targets.forEach { target ->
+            robot.enterSearch("Explain this")
+
+            // WHEN
+            robot.tapAssistant(target)
+
+            // THEN
+            assertEquals(target, robot.lastSearchTarget)
+            robot.assertSearchUnfocused()
+        }
     }
 
     @Test
@@ -152,6 +174,8 @@ private class HomeRobot(
         private set
     var scheduleOpenRequests = 0
         private set
+    var lastSearchTarget: SearchTarget? = null
+        private set
     var browserSearchRequests = 0
         private set
     var openedAppLabel: String? = null
@@ -187,10 +211,10 @@ private class HomeRobot(
                     appearance = HomeAppearanceState(),
                     actions = HomeActions(
                         onQueryChange = { query = it },
-                        onPrimarySearch = {},
-                        onBrowserSearch = { browserSearchRequests += 1 },
-                        onPlayStoreSearch = {},
-                        onMapsSearch = {},
+                        onSearch = { target ->
+                            lastSearchTarget = target
+                            if (target == SearchTarget.Browser) browserSearchRequests += 1
+                        },
                         onAppClicked = { openedAppLabel = it.label },
                         onShortcutClicked = { openedShortcutSlot = it.slot },
                         onOpenDrawer = { drawerOpenRequests += 1 },
@@ -224,6 +248,15 @@ private class HomeRobot(
         composeRule.onNodeWithTag("home_search_field").performTextInput(text)
     }
 
+    fun assertSearchUnfocused() {
+        composeRule.onNodeWithTag("home_search_field").assertIsNotFocused()
+    }
+
+    fun tapAssistant(target: SearchTarget) {
+        composeRule.onNodeWithTag("home_assistant_button").performClick()
+        composeRule.onNodeWithTag("home_assistant_$target").performClick()
+    }
+
     fun tapBrowser() {
         composeRule.onNodeWithTag("home_browser_button").performClick()
     }
@@ -239,12 +272,12 @@ private class HomeRobot(
     }
 
     fun assertSearchSuggestionActionsVisible() {
-        composeRule.onNodeWithText("Add to home").assertIsDisplayed()
+        composeRule.onNodeWithText("Add to Home").assertIsDisplayed()
         composeRule.onNodeWithText("Uninstall").assertIsDisplayed()
     }
 
     fun tapAddToHome() {
-        composeRule.onNodeWithText("Add to home").performClick()
+        composeRule.onNodeWithText("Add to Home").performClick()
     }
 
     fun assertEmptyStateVisible() {

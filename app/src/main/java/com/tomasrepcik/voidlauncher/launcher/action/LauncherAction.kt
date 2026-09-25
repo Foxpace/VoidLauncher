@@ -10,6 +10,7 @@ sealed interface LauncherAction {
     data class OpenWebSearch(val query: String) : LauncherAction
     data class OpenPlayStoreSearch(val query: String) : LauncherAction
     data class OpenMapsSearch(val query: String) : LauncherAction
+    data class AskAssistant(val assistant: TextAssistant, val text: String) : LauncherAction
     data class OpenShortcut(val shortcut: ResolvedShortcut) : LauncherAction
     data class UninstallApp(val app: InstalledApp) : LauncherAction
 }

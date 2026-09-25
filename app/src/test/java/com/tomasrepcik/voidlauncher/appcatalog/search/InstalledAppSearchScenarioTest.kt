@@ -5,6 +5,7 @@ import com.tomasrepcik.voidlauncher.launcher.InstalledApp
 import com.tomasrepcik.voidlauncher.launcher.action.LauncherAction
 import com.tomasrepcik.voidlauncher.testing.installedApp
 import org.junit.Test
+import com.tomasrepcik.voidlauncher.launcher.action.TextAssistant
 
 class InstalledAppSearchScenarioTest {
     private val search = InstalledAppSearch()
@@ -123,6 +124,26 @@ class InstalledAppSearchScenarioTest {
             .isEqualTo(LauncherAction.OpenPlayStoreSearch("weather app"))
         assertThat(mapsAction)
             .isEqualTo(LauncherAction.OpenMapsSearch("coffee nearby"))
+    }
+
+    @Test
+    fun givenAssistantPrompt_whenResolved_thenSelectedAssistantReceivesTrimmedOriginalText() {
+        // GIVEN
+        val prompt = "  Explain Čas & Počasie?\nKeep punctuation + emoji ☀️  "
+        val assistants = listOf(
+            SearchTarget.ChatGpt to TextAssistant.ChatGpt,
+            SearchTarget.Claude to TextAssistant.Claude,
+            SearchTarget.Gemini to TextAssistant.Gemini,
+        )
+
+        assistants.forEach { (target, assistant) ->
+            // WHEN
+            val action = search.resolve(target, prompt, apps)
+
+            // THEN
+            assertThat(action).isEqualTo(LauncherAction.AskAssistant(assistant, prompt.trim()))
+            assertThat(search.resolve(target, "   ", apps)).isNull()
+        }
     }
 
     @Test

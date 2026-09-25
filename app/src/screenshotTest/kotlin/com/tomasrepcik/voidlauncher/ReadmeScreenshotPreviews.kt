@@ -86,10 +86,7 @@ private val sampleShortcuts = listOf(
 
 private val homeActions = HomeActions(
     onQueryChange = {},
-    onPrimarySearch = {},
-    onBrowserSearch = {},
-    onPlayStoreSearch = {},
-    onMapsSearch = {},
+    onSearch = {},
     onAppClicked = {},
     onShortcutClicked = {},
     onOpenDrawer = {},

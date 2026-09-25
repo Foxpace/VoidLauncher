@@ -135,4 +135,9 @@
     <string name="view_mit_license">MIT terms</string>
     <string name="view_apache_license">Apache terms</string>
     <string name="close">Close</string>
+    <string name="ask_ai">AI</string>
+    <string name="chatgpt">ChatGPT</string>
+    <string name="claude">Claude</string>
+    <string name="gemini">Gemini</string>
+    <string name="assistant_prompt_copied">Prompt copied. Paste it into the assistant.</string>
 </resources>

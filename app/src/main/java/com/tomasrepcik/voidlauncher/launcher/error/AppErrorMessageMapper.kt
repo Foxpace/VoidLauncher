@@ -20,10 +20,10 @@ class AppErrorMessageMapper {
 
     fun recoveryMessage(context: Context, recovery: ErrorRecovery): String? = when (recovery) {
         ErrorRecovery.NONE,
-        ErrorRecovery.WEB_SEARCH_PAGE,
         ErrorRecovery.STORE_WEBSITE,
         ErrorRecovery.MAPS_WEBSITE,
         -> null
+        ErrorRecovery.ASSISTANT_WEBSITE -> context.getString(R.string.assistant_prompt_copied)
         ErrorRecovery.SYSTEM_APP_INFO -> context.getString(R.string.system_app_info_opened)
         ErrorRecovery.UNINSTALL_BLOCKED_APP_INFO ->
             context.getString(R.string.uninstall_blocked_info_opened)

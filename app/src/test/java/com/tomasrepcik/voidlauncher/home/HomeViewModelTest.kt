@@ -32,6 +32,7 @@ import org.junit.Test
 import java.time.Clock
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import com.tomasrepcik.voidlauncher.testing.PlannedRepositoryFailures
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -81,6 +82,7 @@ class HomeViewModelTest {
             // WHEN
             subject.onAction(HomeAction.QueryChanged("spot"))
             advanceUntilIdle()
+            val suggestionsBeforeSearch = subject.uiState.value.searchSuggestions
             val action = async { subject.rootActions.first() }
             subject.onAction(HomeAction.Search(SearchTarget.BestMatch))
             advanceUntilIdle()
@@ -91,12 +93,83 @@ class HomeViewModelTest {
             val slots = state.shortcuts.map { it.slot }
             assertThat(slots)
                 .containsExactly(ShortcutSlot.LEFT, ShortcutSlot.RIGHT).inOrder()
-            val suggestions = state.searchSuggestions
-            val firstSuggestion = suggestions.first()
+            val firstSuggestion = suggestionsBeforeSearch.first()
             assertThat(firstSuggestion).isEqualTo(spotify)
             assertThat(subject.uiState.value.isLoading).isFalse()
+            assertThat(subject.uiState.value.query).isEmpty()
+            assertThat(subject.uiState.value.searchSuggestions).isEmpty()
             assertThat(action.await()).isEqualTo(
                 LauncherRootAction.Open(LauncherAction.LaunchInstalledApp(spotify))
+            )
+        }
+
+    @Test
+    fun givenText_whenEachDestinationIsOpened_thenQueryAndSuggestionsAreCleared() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val repository = launcherRepository()
+            advanceUntilIdle()
+            val subject = repository.homeViewModel()
+            startCollecting(subject.uiState)
+            SearchTarget.entries.forEach { target ->
+                subject.onAction(HomeAction.QueryChanged("  coffee & cake  "))
+                advanceUntilIdle()
+
+                // WHEN
+                subject.onAction(HomeAction.Search(target))
+                advanceUntilIdle()
+
+                // THEN
+                assertThat(subject.uiState.value.query).isEmpty()
+                assertThat(subject.uiState.value.searchSuggestions).isEmpty()
+                assertThat(subject.rootActions.first()).isEqualTo(
+                    LauncherRootAction.Open(
+                        InstalledAppSearch().resolve(target, "coffee & cake", emptyList())!!,
+                    ),
+                )
+            }
+        }
+
+    @Test
+    fun givenActiveSearch_whenShortcutIsOpened_thenQueryIsCleared() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val repository = launcherRepository()
+            advanceUntilIdle()
+            val subject = repository.homeViewModel()
+            startCollecting(subject.uiState)
+            subject.onAction(HomeAction.QueryChanged("coffee"))
+            advanceUntilIdle()
+
+            // WHEN
+            subject.onAction(HomeAction.OpenShortcut(resolvedShortcut(ShortcutSlot.LEFT)))
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(subject.uiState.value.query).isEmpty()
+        }
+
+    @Test
+    fun givenUnavailableAppCatalog_whenAssistantIsSelected_thenPromptStillOpens() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // GIVEN
+            val repository = launcherRepository(failures = PlannedRepositoryFailures(initializationCount = 1))
+            advanceUntilIdle()
+            val subject = repository.homeViewModel()
+            subject.onAction(HomeAction.QueryChanged("Explain Kotlin"))
+
+            // WHEN
+            subject.onAction(HomeAction.Search(SearchTarget.Claude))
+            advanceUntilIdle()
+
+            // THEN
+            assertThat(subject.rootActions.first()).isEqualTo(
+                LauncherRootAction.Open(
+                    LauncherAction.AskAssistant(
+                        com.tomasrepcik.voidlauncher.launcher.action.TextAssistant.Claude,
+                        "Explain Kotlin",
+                    ),
+                ),
             )
         }
 

@@ -25,6 +25,7 @@ enum class AppOperation {
     SEARCH_WEB,
     SEARCH_STORE,
     SEARCH_MAPS,
+    ASK_ASSISTANT,
     UNINSTALL_APP,
     INITIALIZE_STORAGE,
     READ_STORAGE,
@@ -43,9 +44,9 @@ enum class AppOperation {
 
 enum class ErrorRecovery {
     NONE,
-    WEB_SEARCH_PAGE,
     STORE_WEBSITE,
     MAPS_WEBSITE,
+    ASSISTANT_WEBSITE,
     SYSTEM_APP_INFO,
     UNINSTALL_BLOCKED_APP_INFO,
     UNINSTALL_UNAVAILABLE_APP_INFO,

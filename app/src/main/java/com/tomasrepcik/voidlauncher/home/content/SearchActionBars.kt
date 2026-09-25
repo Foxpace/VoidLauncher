@@ -27,7 +27,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.home.HomeActions
-import com.tomasrepcik.voidlauncher.home.SearchOverlayActions
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.tomasrepcik.voidlauncher.appcatalog.search.SearchTarget
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
@@ -50,15 +58,7 @@ internal fun BoxScope.KeyboardSearchActions(
             shadowElevation = 8.dp,
         ) {
             SearchActionButtons(
-                actions = SearchOverlayActions(
-                    onSuggestionClicked = {},
-                    onAddToHome = {},
-                    onRemoveFromHome = {},
-                    onUninstall = {},
-                    onPlayStoreSearch = actions.onPlayStoreSearch,
-                    onMapsSearch = actions.onMapsSearch,
-                    onBrowserSearch = actions.onBrowserSearch,
-                ),
+                onSearch = actions.onSearch,
                 testTagPrefix = "home_keyboard",
             )
         }
@@ -72,7 +72,7 @@ internal fun keyboardSearchActionsAreVisible(
 
 @Composable
 internal fun SearchActionButtons(
-    actions: SearchOverlayActions,
+    onSearch: (SearchTarget) -> Unit,
     testTagPrefix: String,
 ) {
     Row(
@@ -80,17 +80,18 @@ internal fun SearchActionButtons(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         SearchActionButton(
-            onClick = actions.onPlayStoreSearch,
+            onClick = { onSearch(SearchTarget.PlayStore) },
             testTag = "${testTagPrefix}_play_store_button",
             icon = { Icon(Icons.Filled.Storefront, stringResource(R.string.open_google_play)) },
         )
         SearchActionButton(
-            onClick = actions.onMapsSearch,
+            onClick = { onSearch(SearchTarget.Maps) },
             testTag = "${testTagPrefix}_maps_button",
             icon = { Icon(Icons.Filled.Map, stringResource(R.string.open_google_maps)) },
         )
+        AssistantSearchMenu(onSearch, testTagPrefix)
         SearchActionButton(
-            onClick = actions.onBrowserSearch,
+            onClick = { onSearch(SearchTarget.Browser) },
             testTag = "${testTagPrefix}_browser_button",
             icon = { Icon(Icons.Outlined.Language, stringResource(R.string.open_browser_search)) },
         )
@@ -108,4 +109,34 @@ private fun SearchActionButton(
         modifier = Modifier.testTag(testTag),
         content = icon,
     )
+}
+
+@Composable
+private fun AssistantSearchMenu(onSearch: (SearchTarget) -> Unit, testTagPrefix: String) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.testTag("${testTagPrefix}_assistant_button"),
+        ) {
+            Text(stringResource(R.string.ask_ai))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            val assistants = listOf(
+                SearchTarget.ChatGpt to R.string.chatgpt,
+                SearchTarget.Claude to R.string.claude,
+                SearchTarget.Gemini to R.string.gemini,
+            )
+            assistants.forEach { (target, label) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(label)) },
+                    modifier = Modifier.testTag("${testTagPrefix}_assistant_$target"),
+                    onClick = {
+                        expanded = false
+                        onSearch(target)
+                    },
+                )
+            }
+        }
+    }
 }

@@ -1,6 +1,5 @@
 package com.tomasrepcik.voidlauncher.launcher.action
 
-import android.app.SearchManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.provider.Settings
@@ -16,7 +15,9 @@ import org.junit.Test
 
 class LauncherActionExecutorTest {
     private val appLauncher = RecordingAppLauncher()
+    private val copiedText = mutableListOf<String>()
     private val executor = LauncherActionExecutor(
+        copyText = { copiedText += it },
         openApp = appLauncher::open,
         installedApplicationFlags = appLauncher::installedApplicationFlags,
     )
@@ -25,6 +26,57 @@ class LauncherActionExecutorTest {
         packageName = "dev.example",
         activityName = "dev.example.MainActivity",
     )
+
+    @Test
+    fun givenAssistantAcceptsText_whenPromptIsSent_thenTextAndDestinationArePreserved() {
+        TextAssistant.entries.forEach { assistant ->
+            // GIVEN
+            val prompt = "Explain Čas & Počasie? + ☀️"
+
+            // WHEN
+            val outcome = executor.execute(LauncherAction.AskAssistant(assistant, prompt))
+            val intent = appLauncher.started.last()
+
+            // THEN
+            assertThat(outcome).isEqualTo(LauncherActionOutcome.Completed)
+            assertThat(intent.action).isEqualTo(Intent.ACTION_SEND)
+            assertThat(intent.type).isEqualTo("text/plain")
+            assertThat(intent.`package`).isEqualTo(assistant.packageName)
+            assertThat(intent.getStringExtra(Intent.EXTRA_TEXT)).isEqualTo(prompt)
+            assertThat(copiedText).isEmpty()
+        }
+    }
+
+    @Test
+    fun givenAssistantCannotReceiveText_whenPromptIsSent_thenPromptIsCopiedAndWebsiteOpens() {
+        TextAssistant.entries.forEach { assistant ->
+            // GIVEN
+            appLauncher.startResults.addAll(listOf(false, true))
+            val prompt = "Explain Kotlin"
+
+            // WHEN
+            val outcome = executor.execute(LauncherAction.AskAssistant(assistant, prompt))
+
+            // THEN
+            assertThat(outcome).isEqualTo(LauncherActionOutcome.Recovered(ErrorRecovery.ASSISTANT_WEBSITE))
+            assertThat(copiedText.last()).isEqualTo(prompt)
+            assertThat(appLauncher.started.last().dataString).isEqualTo(assistant.website)
+        }
+    }
+
+    @Test
+    fun givenAssistantAndBrowserUnavailable_whenPromptIsSent_thenFailureIsReported() {
+        // GIVEN
+        appLauncher.startResults.addAll(listOf(false, false))
+
+        // WHEN
+        val outcome = executor.execute(LauncherAction.AskAssistant(TextAssistant.Claude, "Explain Kotlin"))
+
+        // THEN
+        assertThat((outcome as LauncherActionOutcome.Failed).error.kind)
+            .isEqualTo(AppErrorKind.DESTINATION_UNAVAILABLE)
+        assertThat(copiedText).containsExactly("Explain Kotlin")
+    }
 
     @Test
     fun givenInstalledApp_whenLaunched_thenActionCompletes() {
@@ -55,24 +107,54 @@ class LauncherActionExecutorTest {
     }
 
     @Test
-    fun givenUnavailableSearchApp_whenWebSearchRuns_thenBrowserFallbackCompletes() {
+    fun givenTextWithSpecialCharacters_whenBrowserOpens_thenUrlPreservesTheWholeQuery() {
         // GIVEN
-        appLauncher.startResults.addAll(listOf(false, true))
+        val query = "Čas & Počasie + C++? #today / 50% ☀️\nsecond line"
+
+        // WHEN
+        val outcome = executor.execute(LauncherAction.OpenWebSearch(query))
+        val intent = appLauncher.started.single()
+        val uri = requireNotNull(intent.data)
+
+        // THEN
+        assertThat(outcome).isEqualTo(LauncherActionOutcome.Completed)
+        assertThat(intent.action).isEqualTo(Intent.ACTION_VIEW)
+        assertThat(uri.scheme).isEqualTo("https")
+        assertThat(uri.host).isEqualTo("www.google.com")
+        assertThat(uri.path).isEqualTo("/search")
+        assertThat(uri.queryParameterNames).containsExactly("q")
+        assertThat(uri.getQueryParameter("q")).isEqualTo(query)
+        assertThat(uri.fragment).isNull()
+        assertThat(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0)
+    }
+
+    @Test
+    fun givenConsecutiveSearches_whenBrowserIsOpenedAgain_thenEachUrlHasItsOwnQuery() {
+        // GIVEN
+        val queries = listOf("first search", "different & second search")
+
+        // WHEN
+        queries.forEach { query -> executor.execute(LauncherAction.OpenWebSearch(query)) }
+
+        // THEN
+        val sentQueries = appLauncher.started.map { it.data?.getQueryParameter("q") }
+        assertThat(sentQueries).containsExactlyElementsIn(queries).inOrder()
+        assertThat(appLauncher.started.map(Intent::getAction))
+            .containsExactly(Intent.ACTION_VIEW, Intent.ACTION_VIEW)
+    }
+
+    @Test
+    fun givenUnavailableBrowser_whenSearchRuns_thenFailureIsReported() {
+        // GIVEN
+        appLauncher.startResults += false
 
         // WHEN
         val outcome = executor.execute(LauncherAction.OpenWebSearch("weather"))
 
         // THEN
-        assertThat(outcome).isEqualTo(
-            LauncherActionOutcome.Recovered(ErrorRecovery.WEB_SEARCH_PAGE),
-        )
-        assertThat(appLauncher.started.map(Intent::getAction)).containsExactly(
-            Intent.ACTION_WEB_SEARCH,
-            Intent.ACTION_VIEW,
-        ).inOrder()
-        assertThat(appLauncher.started.first().getStringExtra(SearchManager.QUERY))
-            .isEqualTo("weather")
-        assertThat(appLauncher.started.last().dataString).contains("weather")
+        val failure = outcome as LauncherActionOutcome.Failed
+        assertThat(failure.error.kind).isEqualTo(AppErrorKind.DESTINATION_UNAVAILABLE)
+        assertThat(appLauncher.started).hasSize(1)
     }
 
     @Test

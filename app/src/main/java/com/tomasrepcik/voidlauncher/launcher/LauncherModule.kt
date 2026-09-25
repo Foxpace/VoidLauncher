@@ -111,6 +111,10 @@ val launcherModule = module {
         LauncherActionExecutor(
             openApp = appLauncher::open,
             installedApplicationFlags = appLauncher::installedApplicationFlags,
+            copyText = { text ->
+                val clipboard = androidContext().getSystemService(android.content.ClipboardManager::class.java)
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Prompt", text))
+            },
         )
     }
     single { AppErrorMessageMapper() }
