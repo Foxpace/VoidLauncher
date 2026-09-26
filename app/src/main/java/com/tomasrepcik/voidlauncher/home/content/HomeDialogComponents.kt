@@ -1,5 +1,6 @@
 package com.tomasrepcik.voidlauncher.home.content
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +30,39 @@ import com.tomasrepcik.voidlauncher.launcher.InstalledApp
 import com.tomasrepcik.voidlauncher.launcher.ResolvedShortcut
 import com.tomasrepcik.voidlauncher.launcher.ShortcutSelection
 import com.tomasrepcik.voidlauncher.design.components.AppIcon
+import com.tomasrepcik.voidlauncher.appcatalog.search.SearchTarget
+
+@Composable
+internal fun AssistantPickerDialog(
+    onDismiss: () -> Unit,
+    onSelect: (SearchTarget) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.choose_ai_assistant)) },
+        text = {
+            Column {
+                listOf(
+                    SearchTarget.ChatGpt to R.string.chatgpt,
+                    SearchTarget.Claude to R.string.claude,
+                    SearchTarget.Gemini to R.string.gemini,
+                ).forEach { (target, label) ->
+                    TextButton(
+                        onClick = { onSelect(target) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("home_assistant_$target"),
+                    ) {
+                        Text(stringResource(label))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
 
 @Composable
 internal fun RenameAppDialog(
@@ -92,15 +126,15 @@ internal fun ShortcutIconButton(
 }
 
 @Composable
-private fun ShortcutAppIcon(shortcut: ResolvedShortcut, iconModifier: Modifier) {
+private fun ShortcutAppIcon(shortcut: ResolvedShortcut, modifier: Modifier) {
     val installedApp = shortcut.installedApp
     if (installedApp != null) {
-        AppIcon(app = installedApp, modifier = Modifier.size(28.dp).clip(CircleShape))
+        AppIcon(app = installedApp, modifier = modifier.clip(CircleShape))
     } else {
         Icon(
             imageVector = Icons.Outlined.Search,
             contentDescription = shortcut.label,
-            modifier = iconModifier,
+            modifier = modifier,
         )
     }
 }

@@ -51,7 +51,7 @@ class HomeScreenRobotTest {
     }
 
     @Test
-    fun givenPrompt_whenEachAssistantIsSelected_thenDestinationIsRequestedAndFocusIsDismissed() {
+    fun givenPrompt_whenKeyboardAssistantIsTapped_thenProviderCanBeChosenAfterKeyboardCloses() {
         // GIVEN
         val robot = HomeRobot(composeRule)
         robot.launch()
@@ -61,7 +61,10 @@ class HomeScreenRobotTest {
             robot.enterSearch("Explain this")
 
             // WHEN
-            robot.tapAssistant(target)
+            robot.openAssistantPickerFromKeyboard()
+            robot.assertAssistantPickerVisible()
+            robot.assertSearchUnfocused()
+            robot.chooseAssistant(target)
 
             // THEN
             assertEquals(target, robot.lastSearchTarget)
@@ -213,6 +216,7 @@ private class HomeRobot(
                         onQueryChange = { query = it },
                         onSearch = { target ->
                             lastSearchTarget = target
+                            query = ""
                             if (target == SearchTarget.Browser) browserSearchRequests += 1
                         },
                         onAppClicked = { openedAppLabel = it.label },
@@ -252,8 +256,15 @@ private class HomeRobot(
         composeRule.onNodeWithTag("home_search_field").assertIsNotFocused()
     }
 
-    fun tapAssistant(target: SearchTarget) {
-        composeRule.onNodeWithTag("home_assistant_button").performClick()
+    fun openAssistantPickerFromKeyboard() {
+        composeRule.onNodeWithTag("home_keyboard_assistant_button").performClick()
+    }
+
+    fun assertAssistantPickerVisible() {
+        composeRule.onNodeWithText("Choose AI assistant").assertIsDisplayed()
+    }
+
+    fun chooseAssistant(target: SearchTarget) {
         composeRule.onNodeWithTag("home_assistant_$target").performClick()
     }
 

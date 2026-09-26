@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,7 @@ import androidx.compose.ui.zIndex
 import com.tomasrepcik.voidlauncher.launcher.AppKey
 import com.tomasrepcik.voidlauncher.R
 import com.tomasrepcik.voidlauncher.home.content.HomeAppActionButtons
+import com.tomasrepcik.voidlauncher.home.content.AssistantPickerDialog
 import com.tomasrepcik.voidlauncher.home.content.HomeEmptyState
 import com.tomasrepcik.voidlauncher.home.content.KeyboardSearchActions
 import com.tomasrepcik.voidlauncher.home.content.RenameAppDialog
@@ -92,6 +94,7 @@ fun HomeScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
     val controller = rememberHomeScreenController()
+    var isAssistantPickerVisible by rememberSaveable { mutableStateOf(false) }
     val bottomSwipeInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     fun dismissSearch() {
         focusManager.clearFocus(force = true)
@@ -141,6 +144,20 @@ fun HomeScreen(
                 controller = controller,
                 searchFocusRequester = searchFocusRequester,
                 onDismiss = focusManager::clearFocus,
+                onChooseAssistant = {
+                    dismissSearch()
+                    isAssistantPickerVisible = true
+                },
+            )
+        }
+
+        if (isAssistantPickerVisible) {
+            AssistantPickerDialog(
+                onDismiss = { isAssistantPickerVisible = false },
+                onSelect = { target ->
+                    isAssistantPickerVisible = false
+                    screenActions.onSearch(target)
+                },
             )
         }
 
@@ -164,6 +181,7 @@ private fun HomeContent(
     controller: HomeScreenController,
     searchFocusRequester: FocusRequester,
     onDismiss: () -> Unit,
+    onChooseAssistant: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -181,8 +199,8 @@ private fun HomeContent(
     ) {
         HomeApps(state, actions, controller)
         HomeShortcuts(state.shortcuts, actions.onShortcutClicked)
-        HomeSearch(state, actions, searchFocusRequester)
-        KeyboardSearchActions(state.query, actions)
+        HomeSearch(state, actions, searchFocusRequester, onChooseAssistant)
+        KeyboardSearchActions(state.query, actions, onChooseAssistant)
     }
 }
 
@@ -274,6 +292,7 @@ private fun BoxScope.HomeSearch(
     state: HomeUiState,
     actions: HomeActions,
     searchFocusRequester: FocusRequester,
+    onChooseAssistant: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -310,6 +329,7 @@ private fun BoxScope.HomeSearch(
                     onRemoveFromHome = actions.onRemoveHomeApp,
                     onUninstall = actions.onUninstallApp,
                     onSearch = actions.onSearch,
+                    onChooseAssistant = onChooseAssistant,
                 ),
             )
         }
@@ -328,6 +348,7 @@ internal data class SearchOverlayActions(
     val onRemoveFromHome: (InstalledApp) -> Unit,
     val onUninstall: (InstalledApp) -> Unit,
     val onSearch: (SearchTarget) -> Unit,
+    val onChooseAssistant: () -> Unit,
 )
 
 internal data class HomeAppRowState(
@@ -474,7 +495,11 @@ private fun SearchOverlay(
         shadowElevation = 8.dp,
     ) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            SearchActionButtons(onSearch = actions.onSearch, testTagPrefix = "home")
+            SearchActionButtons(
+                onSearch = actions.onSearch,
+                onChooseAssistant = actions.onChooseAssistant,
+                testTagPrefix = "home",
+            )
             SearchOverlayResults(state = state, actions = actions)
         }
     }

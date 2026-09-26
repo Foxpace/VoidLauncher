@@ -136,6 +136,7 @@
     <string name="view_apache_license">Apache terms</string>
     <string name="close">Close</string>
     <string name="ask_ai">AI</string>
+    <string name="choose_ai_assistant">Choose AI assistant</string>
     <string name="chatgpt">ChatGPT</string>
     <string name="claude">Claude</string>
     <string name="gemini">Gemini</string>
